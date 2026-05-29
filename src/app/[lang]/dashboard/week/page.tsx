@@ -10,6 +10,7 @@ import {
 import { buildDailyToolkit } from "@/lib/engine/daily-toolkit";
 import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import { getGrowthPath, getSkillByDay } from "@/data/parent-growth-path";
+import { getMomentDisplayText } from "@/lib/quiz/tags";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { localizeHref } from "@/lib/i18n/href";
@@ -492,7 +493,7 @@ export default async function WeekPage({
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                       <span>{day.timeMinutes} min</span>
                       <span>&middot;</span>
-                      <span>{day.routineMoment}</span>
+                      <span>{getMomentDisplayText(day.routineMoment, locale)}</span>
                       {day.activity.energy_level && (
                         <>
                           <span>&middot;</span>

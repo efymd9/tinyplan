@@ -7,6 +7,7 @@ import { SpotIcon } from "@/components/illustrations/activity-illustrations";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 import type { Locale } from "@/lib/i18n/config";
+import { getEnergyLevelDisplay } from "@/lib/quiz/tags";
 import { getSosScripts } from "@/data/sos-scripts";
 import type { SosScript } from "@/data/sos-scripts";
 import { getGrowthPath } from "@/data/parent-growth-path";
@@ -443,7 +444,7 @@ function ActivityCard({
               )}
               {activity.energy_level && (
                 <span className="text-xs text-muted-foreground">
-                  &middot; {activity.energy_level} {copy.energy}
+                  &middot; {getEnergyLevelDisplay(activity.energy_level, locale)} {copy.energy}
                 </span>
               )}
               {(!activity.materials ||

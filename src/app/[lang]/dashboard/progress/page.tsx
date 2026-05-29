@@ -10,7 +10,7 @@ import {
 import { generateAdaptiveInsight, getEarlySignalLevel } from "@/lib/personalization/personalize";
 import { buildDailyToolkit } from "@/lib/engine/daily-toolkit";
 import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
-import { PARENT_SKILL_LABELS } from "@/data/parent-tools";
+import { PARENT_SKILL_LABELS, getParentSkillLabel } from "@/data/parent-tools";
 import { getGrowthPath } from "@/data/parent-growth-path";
 import { SpotIcon } from "@/components/illustrations/activity-illustrations";
 import Image from "next/image";
@@ -326,6 +326,7 @@ export default async function ProgressPage({
     feedbackCounts,
     weeklyPlan.goalDisplayText,
     weeklyPlan.bestMomentDisplay,
+    locale,
   );
 
   // ── Parent Skills ──────────────────────────────────────────────────────────
@@ -351,7 +352,7 @@ export default async function ProgressPage({
       const skill = toolkit.parentSkill;
       const key = skill.skillType ?? skill.id;
       const label = skill.skillType
-        ? (PARENT_SKILL_LABELS[skill.skillType] ?? skill.title)
+        ? getParentSkillLabel(skill.skillType, locale)
         : skill.title;
       const wasDone = logMap.get(day.dayNumber) === "done";
       if (!parentSkillsMap.has(key)) {
@@ -364,8 +365,8 @@ export default async function ProgressPage({
   }
   const parentSkills = Array.from(parentSkillsMap.entries()).map(([key, val]) => ({ key, ...val }));
 
-  const fallbackParentSkills = Object.entries(PARENT_SKILL_LABELS).slice(0, 4).map(([key, label]) => ({
-    key, label, practiced: 0, total: 1,
+  const fallbackParentSkills = Object.keys(PARENT_SKILL_LABELS).slice(0, 4).map((key) => ({
+    key, label: getParentSkillLabel(key, locale), practiced: 0, total: 1,
   }));
   const displayParentSkills = parentSkills.length > 0 ? parentSkills : fallbackParentSkills;
   const parentSkillsPracticed = displayParentSkills.filter((s) => s.practiced > 0).length;

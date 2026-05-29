@@ -308,13 +308,30 @@ const STATUS_LABEL: Record<string, string> = {
   too_long: 'too long',
 };
 
-function firstFeedbackStatus(feedbackCounts: Record<string, number>): { status: string; label: string } {
+const STATUS_LABEL_ES: Record<string, string> = {
+  done: 'se sintió bien',
+  too_hard: 'muy difícil',
+  too_easy: 'muy fácil',
+  skipped: 'saltada',
+  loved_it: 'le encantó',
+  went_well: 'salió bien',
+  easy: 'fácil',
+  engaged: 'concentrado',
+  refused: 'se negó',
+  too_long: 'muy larga',
+};
+
+function firstFeedbackStatus(
+  feedbackCounts: Record<string, number>,
+  locale: Locale = 'en',
+): { status: string; label: string } {
+  const map = locale === 'es' ? STATUS_LABEL_ES : STATUS_LABEL;
   for (const [status, count] of Object.entries(feedbackCounts)) {
     if (count > 0 && status !== 'pending') {
-      return { status, label: STATUS_LABEL[status] ?? status.replace(/_/g, ' ') };
+      return { status, label: map[status] ?? status.replace(/_/g, ' ') };
     }
   }
-  return { status: 'done', label: 'felt right' };
+  return { status: 'done', label: locale === 'es' ? 'se sintió bien' : 'felt right' };
 }
 
 function firstFeedbackDayNumber(feedbackCounts: Record<string, number>): number {
@@ -325,7 +342,10 @@ function firstFeedbackDayNumber(feedbackCounts: Record<string, number>): number 
   return Math.min(total, 7);
 }
 
-function deriveFormingPattern(feedbackCounts: Record<string, number>): string {
+function deriveFormingPattern(
+  feedbackCounts: Record<string, number>,
+  locale: Locale = 'en',
+): string {
   const positive = (feedbackCounts['loved_it'] ?? 0) +
     (feedbackCounts['went_well'] ?? 0) +
     (feedbackCounts['easy'] ?? 0) +
@@ -336,6 +356,14 @@ function deriveFormingPattern(feedbackCounts: Record<string, number>): string {
     (feedbackCounts['refused'] ?? 0) +
     (feedbackCounts['too_long'] ?? 0) +
     (feedbackCounts['too_easy'] ?? 0);
+
+  if (locale === 'es') {
+    if (positive > 0 && negative === 0) return 'por ahora todo está funcionando bien';
+    if (negative > 0 && positive === 0) return 'por ahora las cosas se han sentido como un esfuerzo';
+    if (positive > negative) return 'están funcionando más actividades de las que no';
+    if (negative > positive) return 'algunas actividades necesitan ajustes';
+    return 'una mezcla de aciertos y desaciertos';
+  }
 
   if (positive > 0 && negative === 0) return 'everything is landing well so far';
   if (negative > 0 && positive === 0) return 'things have felt like a stretch so far';
@@ -348,6 +376,7 @@ export function generateAdaptiveInsight(
   feedbackCounts: Record<string, number>,
   goalDisplayText: string,
   bestMomentDisplay: string,
+  locale: Locale = 'en',
 ): AdaptiveInsight {
   const total = Object.values(feedbackCounts).reduce(
     (sum, n) => sum + n,
@@ -355,28 +384,70 @@ export function generateAdaptiveInsight(
   );
 
   const level = getEarlySignalLevel(total);
+  const es = locale === 'es';
 
   if (level === 'none') {
-    return {
-      noticed:
-        "We'll start simple. After your first check-in, TinyPlan will adjust tomorrow's plan.",
-      whatWorked:
-        "Nothing logged yet -- try today's activity and let us know how it went.",
-      whatFeltHard:
-        "No challenges recorded yet. That's completely normal for week one.",
-      nextAdjustment:
-        "Your plan is based on your quiz answers. After a few days, we'll fine-tune it.",
-    };
+    return es
+      ? {
+          noticed:
+            'Empezaremos sencillo. Después de tu primer check-in, TinyPlan ajustará el plan de mañana.',
+          whatWorked:
+            'Aún no hay nada registrado — prueba la actividad de hoy y cuéntanos cómo te fue.',
+          whatFeltHard:
+            'Aún no hay retos registrados. Eso es completamente normal en la primera semana.',
+          nextAdjustment:
+            'Tu plan se basa en tus respuestas del test. Después de unos días, lo afinaremos.',
+        }
+      : {
+          noticed:
+            "We'll start simple. After your first check-in, TinyPlan will adjust tomorrow's plan.",
+          whatWorked:
+            "Nothing logged yet -- try today's activity and let us know how it went.",
+          whatFeltHard:
+            "No challenges recorded yet. That's completely normal for week one.",
+          nextAdjustment:
+            "Your plan is based on your quiz answers. After a few days, we'll fine-tune it.",
+        };
   }
 
   if (level === 'early') {
-    const { status, label } = firstFeedbackStatus(feedbackCounts);
+    const { status, label } = firstFeedbackStatus(feedbackCounts, locale);
     const dayNum = firstFeedbackDayNumber(feedbackCounts);
+    const isPositiveStatus =
+      status === 'done' || status === 'loved_it' || status === 'went_well' || status === 'easy' || status === 'engaged';
+    const isStrongStart =
+      status === 'done' || status === 'loved_it' || status === 'went_well';
 
     let workedText: string;
     let hardText: string;
 
-    if (status === 'done' || status === 'loved_it' || status === 'went_well' || status === 'easy' || status === 'engaged') {
+    if (es) {
+      if (isPositiveStatus) {
+        workedText = 'Esto sugiere que el ritmo y el estilo de la actividad encajan con tu familia.';
+        hardText = 'Nada se sintió demasiado difícil todavía. Es una buena señal temprana.';
+      } else if (status === 'too_hard') {
+        workedText = 'Todavía estamos encontrando el nivel adecuado. Ese primer check-in ayuda muchísimo.';
+        hardText = 'Es útil saberlo. Mañana será más suave.';
+      } else if (status === 'too_easy') {
+        workedText = 'Bueno saber que podemos subir el listón. Vamos a sumar un poco más de desafío.';
+        hardText = 'La actividad se sintió demasiado fácil. Subiremos el nivel un poco.';
+      } else if (status === 'skipped' || status === 'refused') {
+        workedText = 'No todas las actividades van a funcionar, y está bien. Probaremos otro enfoque.';
+        hardText = 'A tu peque no le latió. La actividad de mañana será de un estilo diferente.';
+      } else {
+        workedText = 'Tu primer check-in nos da un punto de partida desde el cual trabajar.';
+        hardText = 'Usaremos esto para afinar lo que viene.';
+      }
+
+      return {
+        noticed: `Señal temprana: Marcaste el Día ${dayNum} como '${label}'. ${isStrongStart ? 'Es un comienzo fuerte.' : 'Eso nos ayuda a calibrar.'}`,
+        whatWorked: workedText,
+        whatFeltHard: hardText,
+        nextAdjustment: 'Después de 2 check-ins más, empezaremos a mostrar patrones más fuertes.',
+      };
+    }
+
+    if (isPositiveStatus) {
       workedText = "This suggests the activity pace and style match your family.";
       hardText = "Nothing felt too hard yet. That's a good early sign.";
     } else if (status === 'too_hard') {
@@ -394,7 +465,7 @@ export function generateAdaptiveInsight(
     }
 
     return {
-      noticed: `Early signal: You marked Day ${dayNum} as '${label}'. ${status === 'done' || status === 'loved_it' || status === 'went_well' ? "That's a strong start." : "That helps us calibrate."}`,
+      noticed: `Early signal: You marked Day ${dayNum} as '${label}'. ${isStrongStart ? "That's a strong start." : "That helps us calibrate."}`,
       whatWorked: workedText,
       whatFeltHard: hardText,
       nextAdjustment: "After 2 more check-ins, we'll start showing stronger patterns.",
@@ -402,7 +473,7 @@ export function generateAdaptiveInsight(
   }
 
   if (level === 'forming') {
-    const pattern = deriveFormingPattern(feedbackCounts);
+    const pattern = deriveFormingPattern(feedbackCounts, locale);
     const positive = (feedbackCounts['loved_it'] ?? 0) +
       (feedbackCounts['went_well'] ?? 0) +
       (feedbackCounts['easy'] ?? 0) +
@@ -413,6 +484,23 @@ export function generateAdaptiveInsight(
       (feedbackCounts['refused'] ?? 0) +
       (feedbackCounts['too_long'] ?? 0) +
       (feedbackCounts['too_easy'] ?? 0);
+
+    if (es) {
+      const workedText = positive > 0
+        ? `Las actividades a las que tu peque respondió sugieren que la dirección general es la correcta.${bestMomentDisplay ? ` Las actividades en ${bestMomentDisplay} parecen prometedoras.` : ''}`
+        : 'Aún no hemos encontrado una favorita clara, pero lo estamos acotando.';
+
+      const hardText = negative > 0
+        ? `Algunas actividades no encajaron${feedbackCounts['too_hard'] ? ' — algunas se sintieron muy difíciles' : ''}${feedbackCounts['skipped'] ? ' — algunas se saltaron' : ''}. Lo estamos anotando.`
+        : 'Nada se ha sentido demasiado difícil por ahora. El ritmo parece el adecuado.';
+
+      return {
+        noticed: `Patrón en formación: ${pattern}.`,
+        whatWorked: workedText,
+        whatFeltHard: hardText,
+        nextAdjustment: 'TinyPlan está aprendiendo qué funciona para tu familia.',
+      };
+    }
 
     const workedText = positive > 0
       ? `The activities your child responded to suggest the overall direction is right.${bestMomentDisplay ? ` Activities ${bestMomentDisplay} seem promising.` : ''}`
@@ -442,28 +530,80 @@ export function generateAdaptiveInsight(
     (feedbackCounts['too_easy'] ?? 0);
 
   if (negative === 0 && positive > 0) {
-    return {
-      noticed:
-        `Your family is in a strong rhythm. ${bestMomentDisplay ? `Activities ${bestMomentDisplay} land especially well.` : 'The activities are consistently clicking.'}`,
-      whatWorked:
-        "Every activity has gone smoothly. Your child responds well to this pace and style.",
-      whatFeltHard:
-        "Nothing has felt too hard -- your plan is well-matched to your family.",
-      nextAdjustment:
-        "We'll keep this energy and introduce a bit more variety to build on the momentum.",
-    };
+    return es
+      ? {
+          noticed:
+            `Tu familia está en un ritmo fuerte. ${bestMomentDisplay ? `Las actividades en ${bestMomentDisplay} funcionan especialmente bien.` : 'Las actividades están encajando de forma constante.'}`,
+          whatWorked:
+            'Todas las actividades han salido sin problemas. Tu peque responde bien a este ritmo y estilo.',
+          whatFeltHard:
+            'Nada se ha sentido demasiado difícil — tu plan encaja bien con tu familia.',
+          nextAdjustment:
+            'Mantendremos esta energía y sumaremos un poco más de variedad para aprovechar el impulso.',
+        }
+      : {
+          noticed:
+            `Your family is in a strong rhythm. ${bestMomentDisplay ? `Activities ${bestMomentDisplay} land especially well.` : 'The activities are consistently clicking.'}`,
+          whatWorked:
+            "Every activity has gone smoothly. Your child responds well to this pace and style.",
+          whatFeltHard:
+            "Nothing has felt too hard -- your plan is well-matched to your family.",
+          nextAdjustment:
+            "We'll keep this energy and introduce a bit more variety to build on the momentum.",
+        };
   }
 
   if (positive === 0 && negative > 0) {
+    return es
+      ? {
+          noticed:
+            'Esta semana ha sido difícil. Eso pasa — no significa que algo esté mal.',
+          whatWorked:
+            'Aún no hemos encontrado el punto justo, pero cada check-in acota la búsqueda.',
+          whatFeltHard:
+            `La mayoría de las actividades se sintieron como un esfuerzo.${feedbackCounts['too_long'] ? ' Algunas se hicieron muy largas.' : ''}${feedbackCounts['refused'] ? ' A algunas se negó.' : ''} Eso nos ayuda a recalibrar.`,
+          nextAdjustment:
+            `La próxima vez será más corta, de menos preparación y ${bestMomentDisplay ? `pensada para ${bestMomentDisplay}` : 'más fácil de encajar'}. Estamos bajando el ritmo para encontrar lo que funciona.`,
+        }
+      : {
+          noticed:
+            "This week has been tough. That happens -- it doesn't mean anything is wrong.",
+          whatWorked:
+            "We haven't found the sweet spot yet, but every check-in narrows the search.",
+          whatFeltHard:
+            `Most activities felt like a stretch.${feedbackCounts['too_long'] ? ' Some ran too long.' : ''}${feedbackCounts['refused'] ? ' A few were refused.' : ''} That helps us recalibrate.`,
+          nextAdjustment:
+            `Next time will be shorter, lower-prep, and ${bestMomentDisplay ? bestMomentDisplay + '-friendly' : 'easier to fit in'}. We're dialling back to find what clicks.`,
+        };
+  }
+
+  if (es) {
+    const workedPartsEs: string[] = [];
+    if (feedbackCounts['loved_it']) workedPartsEs.push('algunas actividades fueron un verdadero éxito');
+    if (feedbackCounts['engaged']) workedPartsEs.push('tu peque se mantuvo concentrado');
+    if (feedbackCounts['easy']) workedPartsEs.push('el nivel de preparación se sintió justo');
+    if (feedbackCounts['done']) workedPartsEs.push('las actividades se sintieron bien');
+
+    const hardPartsEs: string[] = [];
+    if (feedbackCounts['too_hard']) hardPartsEs.push('algunas actividades fueron demasiado difíciles');
+    if (feedbackCounts['too_long']) hardPartsEs.push('algunas se hicieron muy largas');
+    if (feedbackCounts['skipped']) hardPartsEs.push('algunas se saltaron');
+    if (feedbackCounts['refused']) hardPartsEs.push('a algunas se negó');
+    if (feedbackCounts['too_easy']) hardPartsEs.push('algunas se sintieron muy fáciles');
+
     return {
       noticed:
-        "This week has been tough. That happens -- it doesn't mean anything is wrong.",
+        `Patrón claro esta semana: ${positive > negative ? 'están funcionando más actividades de las que no' : 'algunas actividades encajan mientras otras necesitan ajustes'}.${bestMomentDisplay ? ` Las actividades en ${bestMomentDisplay} funcionan mejor.` : ''}`,
       whatWorked:
-        "We haven't found the sweet spot yet, but every check-in narrows the search.",
+        workedPartsEs.length > 0
+          ? `Lo que funciona: ${workedPartsEs.join(', ')}.`
+          : 'Algunas actividades salieron bien — construiremos sobre esas.',
       whatFeltHard:
-        `Most activities felt like a stretch.${feedbackCounts['too_long'] ? ' Some ran too long.' : ''}${feedbackCounts['refused'] ? ' A few were refused.' : ''} That helps us recalibrate.`,
+        hardPartsEs.length > 0
+          ? `Qué ajustar: ${hardPartsEs.join(', ')}.`
+          : 'Un par de momentos se sintieron difíciles, pero nada que no se pueda suavizar.',
       nextAdjustment:
-        `Next time will be shorter, lower-prep, and ${bestMomentDisplay ? bestMomentDisplay + '-friendly' : 'easier to fit in'}. We're dialling back to find what clicks.`,
+        `Vamos a apostar por lo que funciona${goalDisplayText ? ' — ' + goalDisplayText.charAt(0).toLowerCase() + goalDisplayText.slice(1) : ''} — y a aliviar lo que se sintió como un esfuerzo.`,
     };
   }
 

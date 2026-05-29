@@ -7,6 +7,8 @@
 // Guardrails: parent-facing only. These are everyday play and parenting practices,
 // not therapy, diagnosis, or medical advice. Nothing here claims to treat or cure.
 
+import type { Locale } from "@/lib/i18n/config";
+
 export type ParentToolCategory = "parent_skill" | "emotional_tool";
 
 /** The eight named Parent Skills used for "Parent Growth" tracking in Progress. */
@@ -49,6 +51,28 @@ export const PARENT_SKILL_LABELS: Record<ParentSkillType, string> = {
   self_talk_modeling: "Self-Talk Modeling",
   one_more_step: "One More Step",
 };
+
+export const PARENT_SKILL_LABELS_ES: Record<ParentSkillType, string> = {
+  predictable_start: "Comienzo Predecible",
+  calm_voice: "Voz Tranquila",
+  limited_choice: "Opciones Limitadas",
+  emotion_naming: "Nombrar la Emoción",
+  small_control: "Pequeño Control",
+  repair_after_refusal: "Reparar Después de una Negativa",
+  self_talk_modeling: "Modelar el Diálogo Interno",
+  one_more_step: "Un Paso Más",
+};
+
+/**
+ * Locale-aware label for one of the eight named parent skills.
+ * Falls back to the English label / raw key when no translation exists.
+ */
+export function getParentSkillLabel(skillType: string, locale: Locale = "en"): string {
+  const map = locale === "es" ? PARENT_SKILL_LABELS_ES : PARENT_SKILL_LABELS;
+  return (map as Record<string, string>)[skillType]
+    ?? PARENT_SKILL_LABELS[skillType as ParentSkillType]
+    ?? skillType;
+}
 
 export const parentTools: ParentTool[] = [
   // ── Emotional tools ────────────────────────────────────────────────────────

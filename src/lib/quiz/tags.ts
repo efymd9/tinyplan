@@ -288,6 +288,23 @@ export function getMainPainDisplayText(pain: string, locale: Locale = 'en'): str
   return map[pain] ?? pain.replace(/_/g, ' ');
 }
 
+const ENERGY_LEVEL_DISPLAY: Record<string, string> = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+};
+
+const ENERGY_LEVEL_DISPLAY_ES: Record<string, string> = {
+  low: 'baja',
+  medium: 'media',
+  high: 'alta',
+};
+
+export function getEnergyLevelDisplay(level: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? ENERGY_LEVEL_DISPLAY_ES : ENERGY_LEVEL_DISPLAY;
+  return map[level?.toLowerCase?.()] ?? level;
+}
+
 // ── Main builder ────────────────────────────────────────────────────────────
 
 export function buildTagProfile(

@@ -12,6 +12,7 @@ import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import type { PlanActivity } from "@/lib/engine/plan-generator";
 import { getSkillByDay, getGrowthPath } from "@/data/parent-growth-path";
 import type { ParentSkill } from "@/data/parent-growth-path";
+import { getMomentDisplayText } from "@/lib/quiz/tags";
 import {
   DailyHeroCard,
   ToolkitAccordionCard,
@@ -610,7 +611,7 @@ export default async function TodayPage({
             <div className="flex gap-2 text-xs text-muted-foreground">
               <span>{tomorrowPlan.timeMinutes} {dict.common.min}</span>
               <span>&middot;</span>
-              <span>{tomorrowPlan.routineMoment}</span>
+              <span>{getMomentDisplayText(tomorrowPlan.routineMoment, locale)}</span>
             </div>
           </div>
         )}
