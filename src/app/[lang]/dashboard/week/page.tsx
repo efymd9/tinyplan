@@ -10,7 +10,7 @@ import {
 import { buildDailyToolkit } from "@/lib/engine/daily-toolkit";
 import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import { getGrowthPath, getSkillByDay } from "@/data/parent-growth-path";
-import { getMomentDisplayText } from "@/lib/quiz/tags";
+import { getMomentDisplayText, getEnergyLevelDisplay } from "@/lib/quiz/tags";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { localizeHref } from "@/lib/i18n/href";
@@ -497,7 +497,7 @@ export default async function WeekPage({
                       {day.activity.energy_level && (
                         <>
                           <span>&middot;</span>
-                          <span>{day.activity.energy_level} {copy.energy}</span>
+                          <span>{getEnergyLevelDisplay(day.activity.energy_level, locale)} {copy.energy}</span>
                         </>
                       )}
                     </div>

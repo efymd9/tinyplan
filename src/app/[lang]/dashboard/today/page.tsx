@@ -12,7 +12,7 @@ import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import type { PlanActivity } from "@/lib/engine/plan-generator";
 import { getSkillByDay, getGrowthPath } from "@/data/parent-growth-path";
 import type { ParentSkill } from "@/data/parent-growth-path";
-import { getMomentDisplayText } from "@/lib/quiz/tags";
+import { getMomentDisplayText, getEnergyLevelDisplay, getCategoryDisplay } from "@/lib/quiz/tags";
 import {
   DailyHeroCard,
   ToolkitAccordionCard,
@@ -220,12 +220,14 @@ function PlayMomentContent({
   materials,
   timeMinutes,
   copy,
+  locale,
 }: {
   activity: PlanActivity;
   steps: string[];
   materials: string[];
   timeMinutes: number;
   copy: TodayCopy;
+  locale: Locale;
 }) {
   return (
     <div className="pt-4 space-y-4">
@@ -236,12 +238,12 @@ function PlayMomentContent({
         </span>
         {activity.energy_level && (
           <span className="text-xs bg-muted/80 px-2.5 py-1 rounded-full font-medium capitalize">
-            {activity.energy_level} {copy.energy}
+            {getEnergyLevelDisplay(activity.energy_level, locale)} {copy.energy}
           </span>
         )}
         {activity.category && (
-          <span className="text-xs bg-muted/80 px-2.5 py-1 rounded-full font-medium">
-            {activity.category}
+          <span className="text-xs bg-muted/80 px-2.5 py-1 rounded-full font-medium capitalize">
+            {getCategoryDisplay(activity.category, locale)}
           </span>
         )}
         {activity.age_min != null && activity.age_max != null && (
@@ -500,6 +502,7 @@ export default async function TodayPage({
               materials={materials}
               timeMinutes={todayPlan.timeMinutes}
               copy={copy}
+              locale={locale}
             />
           </ToolkitAccordionCard>
 

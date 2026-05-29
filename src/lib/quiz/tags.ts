@@ -305,6 +305,25 @@ export function getEnergyLevelDisplay(level: string, locale: Locale = 'en'): str
   return map[level?.toLowerCase?.()] ?? level;
 }
 
+const CATEGORY_DISPLAY_ES: Record<string, string> = {
+  cognitive: 'cognitivo',
+  language: 'lenguaje',
+  physical: 'físico',
+  sensory: 'sensorial',
+  outdoor: 'aire libre',
+  emotional: 'emocional',
+  creative: 'creativo',
+  bonding: 'conexión',
+  routine: 'rutina',
+};
+
+export function getCategoryDisplay(category: string, locale: Locale = 'en'): string {
+  if (locale === 'es') {
+    return CATEGORY_DISPLAY_ES[category?.toLowerCase?.()] ?? category;
+  }
+  return category;
+}
+
 // ── Main builder ────────────────────────────────────────────────────────────
 
 export function buildTagProfile(
