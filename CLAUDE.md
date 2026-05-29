@@ -22,6 +22,7 @@ npx drizzle-kit push # Push schema to SQLite
 - Magic link auth (jose JWT, httpOnly session cookies)
 - Stripe subscriptions (mock fallback when key absent)
 - Resend email (console fallback when key absent)
+- i18n: Spanish (default) + English under `app/[lang]/`; in-repo typed dictionary (no library); `proxy.ts` locale redirect
 
 ## Coding Conventions
 
@@ -32,6 +33,7 @@ npx drizzle-kit push # Push schema to SQLite
 - Provider pattern with fallbacks: Stripe (mock), Resend (console), PostHog (SQLite-only), AI adapter (stub).
 - Quiz state is persisted to localStorage on the client for recovery across page reloads.
 - Plan generation uses a deterministic seeded shuffle (Fisher-Yates) so the same inputs produce the same plan.
+- **i18n (default Spanish):** All user-facing pages live under `app/[lang]/`. Get the locale from `params.lang` (server) or `useLocale()`/`useT()` (client) — never hardcode user-facing strings. Short chrome comes from the typed dictionary (`getDictionary(locale)`, `src/lib/i18n/en.ts` + `es.ts`); larger content from locale-keyed getters (`getQuestions`, `getSosScripts`, `getGrowthPath`, `getFallbackActivities`, `localizeRoutine`, `localizeParentTool`). Keep IDs/tags/enum codes identical across locales so logic stays language-independent. The DB stays English — stored plans are re-localized at render by `localizePlan(plan, locale)`. `/admin` and `/api/*` are NOT localized. Internal links/redirects must go through `localizeHref(path, locale)`.
 
 ## Product Guardrails
 
@@ -45,8 +47,11 @@ npx drizzle-kit push # Push schema to SQLite
 
 ## Important Routes
 
+> All page routes below are served under a locale segment — `/es/…` (default) and `/en/…`. `proxy.ts` redirects any unprefixed path to the visitor's locale (cookie → `Accept-Language` → `es`). `/admin` and `/api/*` are NOT localized.
+
 ### Pages
-- `/` — Landing page
+- `/` — Redirects to `/{locale}` (default `/es`)
+- `/[lang]` — Landing page
 - `/quiz` — 31-screen quiz shell (client component with localStorage persistence)
 - `/result` — Quiz result preview with paywall teaser
 - `/pricing` — Pricing and plan preview
@@ -81,3 +86,14 @@ npx drizzle-kit push # Push schema to SQLite
 - `src/data/sos-scripts.ts` — 8 SOS emergency parenting scripts
 - `src/components/quiz/quiz-shell.tsx` — Quiz UI with state management
 - `drizzle.config.ts` — Drizzle Kit config (SQLite at `./data/tinyplan.db`)
+
+### i18n
+- `proxy.ts` — Locale detection + redirect + `tinyplan_locale` cookie (Next.js 16 proxy; lives in `src/` beside `app/`)
+- `src/lib/i18n/config.ts` — `Locale`, `locales`, `defaultLocale` (`'es'`), `isLocale`/`resolveLocale` (edge-safe; no dictionary imports)
+- `src/lib/i18n/en.ts` + `es.ts` + `index.ts` — Typed UI dictionaries + `getDictionary(locale)`/`t()`
+- `src/lib/i18n/href.ts` — `localizeHref` / `switchLocalePath`
+- `src/components/i18n/locale-provider.tsx` — `LocaleProvider` + `useLocale`/`useT` hooks
+- `src/components/language-switcher.tsx` — ES/EN toggle
+- `src/lib/engine/localize-plan.ts` — `localizePlan(plan, locale)` re-localizes a stored (English) plan at render time
+- `src/app/[lang]/layout.tsx` — Locale validation + provider; `src/app/layout.tsx` sets `<html lang>` from cookie
+- Locale-keyed content: `src/lib/quiz/questions.{en,es}.ts`, `src/data/sos-scripts.{en,es}.ts`, `src/data/parent-growth-path.{en,es}.ts`, `src/lib/engine/fallback-activities.ts`
