@@ -5,6 +5,7 @@ import { DesktopNav, MobileNav } from "@/components/dashboard/nav";
 import { ProfileMenu } from "@/components/dashboard/profile-menu";
 import { getActivePlan, getDayLogs, getTodayDayNumber } from "@/lib/dashboard/helpers";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,10 @@ export default async function DashboardLayout({
           <Link href="/dashboard/today" aria-label="TinyPlan home">
             <BrandLogo width={130} priority />
           </Link>
-          <ProfileMenu email={user.email} />
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <ProfileMenu email={user.email} />
+          </div>
         </div>
       </header>
 
