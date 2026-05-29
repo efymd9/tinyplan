@@ -348,7 +348,7 @@ export default async function ProgressPage({
       struggle: hasStruggle,
     };
     for (const day of weeklyPlan.days) {
-      const toolkit = buildDailyToolkit(ctx, day.dayNumber);
+      const toolkit = buildDailyToolkit(ctx, day.dayNumber, locale);
       const skill = toolkit.parentSkill;
       const key = skill.skillType ?? skill.id;
       const label = skill.skillType

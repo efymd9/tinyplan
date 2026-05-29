@@ -308,7 +308,7 @@ export default async function WeekPage({
       };
 
   const dayToolkits = new Map(
-    weeklyPlan.days.map((d) => [d.dayNumber, buildDailyToolkit(toolkitCtx, d.dayNumber)]),
+    weeklyPlan.days.map((d) => [d.dayNumber, buildDailyToolkit(toolkitCtx, d.dayNumber, locale)]),
   );
 
   const ageRange = tagProfile?.age_range ?? null;

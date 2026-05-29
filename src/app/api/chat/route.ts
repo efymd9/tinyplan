@@ -31,7 +31,9 @@ interface Clarifications {
   childState?: string;
 }
 
-const SAFETY_KEYWORDS = [
+// Matched against the input regardless of UI language, so a Spanish parent
+// typing crisis words still triggers the safety response (and vice versa).
+const SAFETY_KEYWORDS_EN = [
   'harm',
   'hurt self',
   'suicide',
@@ -40,6 +42,21 @@ const SAFETY_KEYWORDS = [
   'danger',
   'hospital',
 ];
+
+const SAFETY_KEYWORDS_ES = [
+  'daño',
+  'suicidio',
+  'suicidarse',
+  'emergencia',
+  'abuso',
+  'peligro',
+  'hospital',
+  'lastimar',
+  'herir',
+  'matar',
+];
+
+const SAFETY_KEYWORDS = [...SAFETY_KEYWORDS_EN, ...SAFETY_KEYWORDS_ES];
 
 const SAFETY_RESPONSE: Record<Locale, ChatResponse> = {
   en: {

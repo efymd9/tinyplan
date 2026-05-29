@@ -11,7 +11,9 @@ import {
   emotionalToolCards,
   backupToolIds,
   toolMatchesAge,
+  localizeParentTool,
 } from "@/data/parent-tools";
+import type { Locale } from "@/lib/i18n/config";
 
 export interface DailyToolkit {
   title: string;
@@ -126,6 +128,15 @@ const MOMENT_CHIP: Record<string, string> = {
   hard_moments: "hard moments",
 };
 
+const MOMENT_CHIP_ES: Record<string, string> = {
+  morning: "las mañanas",
+  after_preschool: "después del preescolar",
+  before_dinner: "antes de la cena",
+  bedtime: "la hora de dormir",
+  weekends: "los fines de semana",
+  hard_moments: "los momentos difíciles",
+};
+
 const GOAL_CHIP: Record<string, string> = {
   independent_play: "independent play",
   fewer_screens: "fewer screens",
@@ -134,6 +145,16 @@ const GOAL_CHIP: Record<string, string> = {
   focus: "focus",
   easier_bedtime: "easier bedtime",
   connection: "more connection",
+};
+
+const GOAL_CHIP_ES: Record<string, string> = {
+  independent_play: "juego independiente",
+  fewer_screens: "menos pantallas",
+  calmer_transitions: "transiciones más tranquilas",
+  speech: "habla y cuentos",
+  focus: "concentración",
+  easier_bedtime: "una hora de dormir más fácil",
+  connection: "más conexión",
 };
 
 const PAIN_PHRASE: Record<string, string> = {
@@ -146,6 +167,16 @@ const PAIN_PHRASE: Record<string, string> = {
   connection: "you want more time together",
 };
 
+const PAIN_PHRASE_ES: Record<string, string> = {
+  screen_time: "terminar el tiempo de pantalla se siente difícil",
+  transitions: "las transiciones se sienten difíciles",
+  no_ideas: "cuesta saber a qué jugar",
+  boredom: "tu peque se aburre rápido",
+  independent_play: "cuesta empezar a jugar solo",
+  bedtime: "la hora de dormir se siente caótica",
+  connection: "quieres más tiempo juntos",
+};
+
 const TITLE_BY_GOAL: Record<string, string> = {
   easier_bedtime: "Calm Evening Start",
   fewer_screens: "Screen-Free Reset",
@@ -156,26 +187,64 @@ const TITLE_BY_GOAL: Record<string, string> = {
   speech: "Words and Stories",
 };
 
-function dailyTitle(ctx: ToolkitContext): string {
+const TITLE_BY_GOAL_ES: Record<string, string> = {
+  easier_bedtime: "Comienzo de Tarde Tranquilo",
+  fewer_screens: "Reinicio Sin Pantallas",
+  calmer_transitions: "Transiciones Más Suaves",
+  connection: "Conectar y Jugar",
+  independent_play: "Juego Solo con Confianza",
+  focus: "Momento de Juego Concentrado",
+  speech: "Palabras y Cuentos",
+};
+
+function dailyTitle(ctx: ToolkitContext, locale: Locale): string {
+  if (locale === "es") {
+    if (ctx.routineMoment === "bedtime") return "Comienzo de Tarde Tranquilo";
+    return TITLE_BY_GOAL_ES[ctx.primaryGoal] ?? "Kit de hoy";
+  }
   if (ctx.routineMoment === "bedtime") return "Calm Evening Start";
   return TITLE_BY_GOAL[ctx.primaryGoal] ?? "Today's Toolkit";
 }
 
-function buildPersonalisedFor(ctx: ToolkitContext): string[] {
+function buildPersonalisedFor(ctx: ToolkitContext, locale: Locale): string[] {
+  const momentMap = locale === "es" ? MOMENT_CHIP_ES : MOMENT_CHIP;
+  const goalMap = locale === "es" ? GOAL_CHIP_ES : GOAL_CHIP;
   const chips: string[] = [];
   const ageNum = parseInt(ctx.ageRange ?? "", 10);
-  if (!Number.isNaN(ageNum)) chips.push(`Age ${ageNum}`);
-  if (ctx.routineMoment && MOMENT_CHIP[ctx.routineMoment]) chips.push(MOMENT_CHIP[ctx.routineMoment]);
-  if (ctx.primaryGoal && GOAL_CHIP[ctx.primaryGoal]) chips.push(GOAL_CHIP[ctx.primaryGoal]);
-  if (ctx.isLowEnergy) chips.push("low-prep");
-  if (ctx.needsScripts) chips.push("needs exact words");
+  if (!Number.isNaN(ageNum)) chips.push(locale === "es" ? `Edad ${ageNum}` : `Age ${ageNum}`);
+  if (ctx.routineMoment && momentMap[ctx.routineMoment]) chips.push(momentMap[ctx.routineMoment]);
+  if (ctx.primaryGoal && goalMap[ctx.primaryGoal]) chips.push(goalMap[ctx.primaryGoal]);
+  if (ctx.isLowEnergy) chips.push(locale === "es" ? "poca preparación" : "low-prep");
+  if (ctx.needsScripts) chips.push(locale === "es" ? "necesitas las palabras exactas" : "needs exact words");
   return chips.slice(0, 5);
 }
 
-function buildWhyThisFits(ctx: ToolkitContext, parentSkill: ParentTool, emotionalTool: ParentTool): string {
+function buildWhyThisFits(
+  ctx: ToolkitContext,
+  parentSkill: ParentTool,
+  emotionalTool: ParentTool,
+  locale: Locale,
+): string {
+  const momentMap = locale === "es" ? MOMENT_CHIP_ES : MOMENT_CHIP;
+  const painMap = locale === "es" ? PAIN_PHRASE_ES : PAIN_PHRASE;
+  const goalMap = locale === "es" ? GOAL_CHIP_ES : GOAL_CHIP;
+
   const painKey = ctx.mainPainAll?.[0] ?? ctx.mainPain;
-  const painPhrase = PAIN_PHRASE[painKey];
-  const goalPhrase = GOAL_CHIP[ctx.primaryGoal];
+  const painPhrase = painMap[painKey];
+  const goalPhrase = goalMap[ctx.primaryGoal];
+
+  if (locale === "es") {
+    const opening =
+      painPhrase && goalPhrase
+        ? `Dijiste que ${painPhrase} y que quieres ${goalPhrase}.`
+        : painPhrase
+          ? `Dijiste que ${painPhrase}.`
+          : goalPhrase
+            ? `Quieres ${goalPhrase}.`
+            : "Armado a partir de tus respuestas del test.";
+
+    return `${opening} Así que hoy combina el momento de juego con una acción para ti — ${parentSkill.title} — y un breve respiro, ${emotionalTool.title}, para que ${momentMap[ctx.routineMoment] ?? "el día"} se sienta un poco más tranquilo.`;
+  }
 
   const opening =
     painPhrase && goalPhrase
@@ -186,12 +255,16 @@ function buildWhyThisFits(ctx: ToolkitContext, parentSkill: ParentTool, emotiona
           ? `You want ${goalPhrase}.`
           : "Built from your quiz answers.";
 
-  return `${opening} So today pairs the play moment with one parent move — ${parentSkill.title} — and a short reset, ${emotionalTool.title}, to keep ${MOMENT_CHIP[ctx.routineMoment] ?? "the day"} a little calmer.`;
+  return `${opening} So today pairs the play moment with one parent move — ${parentSkill.title} — and a short reset, ${emotionalTool.title}, to keep ${momentMap[ctx.routineMoment] ?? "the day"} a little calmer.`;
 }
 
 // ── Main builder ──────────────────────────────────────────────────────────────
 
-export function buildDailyToolkit(ctx: ToolkitContext, dayNumber: number): DailyToolkit {
+export function buildDailyToolkit(
+  ctx: ToolkitContext,
+  dayNumber: number,
+  locale: Locale = "en",
+): DailyToolkit {
   const groups = activeGroups(ctx);
   const flat = groups.flat();
 
@@ -199,21 +272,26 @@ export function buildDailyToolkit(ctx: ToolkitContext, dayNumber: number): Daily
   const toolIds = orderedUnique(flat.filter((id) => getParentToolById(id)?.category === "emotional_tool"));
   const backupIds = orderedUnique(flat.filter((id) => backupToolIds.includes(id)));
 
-  const parentSkill = pickRotating(skillIds, dayNumber, ctx.ageRange, [], parentSkillTools);
-  const emotionalTool = pickRotating(toolIds, dayNumber, ctx.ageRange, [], emotionalToolCards);
+  const rawParentSkill = pickRotating(skillIds, dayNumber, ctx.ageRange, [], parentSkillTools);
+  const rawEmotionalTool = pickRotating(toolIds, dayNumber, ctx.ageRange, [], emotionalToolCards);
   const backupPool = backupIds.length > 0 ? backupIds : backupToolIds;
-  const backup = pickRotating(
+  const rawBackup = pickRotating(
     backupPool,
     dayNumber,
     ctx.ageRange,
-    [parentSkill.id],
+    [rawParentSkill.id],
     backupToolIds.map((id) => getParentToolById(id)!).filter(Boolean),
   );
 
+  const parentSkill = localizeParentTool(rawParentSkill, locale);
+  const emotionalTool = localizeParentTool(rawEmotionalTool, locale);
+  const backup = localizeParentTool(rawBackup, locale);
+
   return {
-    title: dailyTitle(ctx),
-    personalisedFor: buildPersonalisedFor(ctx),
-    whyThisFits: buildWhyThisFits(ctx, parentSkill, emotionalTool),
+    title: dailyTitle(ctx, locale),
+    personalisedFor: buildPersonalisedFor(ctx, locale),
+    // Pass the already-localized tools so their titles read in the active locale.
+    whyThisFits: buildWhyThisFits(ctx, parentSkill, emotionalTool, locale),
     parentSkill,
     emotionalTool,
     backup,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createCheckoutSession } from "@/lib/payments/stripe";
 import { getCurrentUser } from "@/lib/auth/magic-link";
+import { resolveLocale } from "@/lib/i18n/config";
 import { v4 as uuid } from "uuid";
 
 export async function POST(req: NextRequest) {
@@ -12,14 +14,15 @@ export async function POST(req: NextRequest) {
     const userId = user?.id || uuid();
     const userEmail = user?.email || email || "";
 
+    const locale = resolveLocale((await cookies()).get("tinyplan_locale")?.value);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     const result = await createCheckoutSession({
       userEmail,
       userId,
       quizSessionId: answers ? "quiz_" + Date.now() : undefined,
-      successUrl: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${baseUrl}/result`,
+      successUrl: `${baseUrl}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${baseUrl}/${locale}/result`,
     });
 
     return NextResponse.json(result);

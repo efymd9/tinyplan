@@ -452,6 +452,247 @@ export const parentTools: ParentTool[] = [
   },
 ];
 
+// ── Spanish translations (keyed by tool id) ──────────────────────────────────
+// Neutral Latin American Spanish, informal "tú", warm and encouraging.
+// Covers every tool id in `parentTools`. Structural fields (category, tags,
+// ageBands, contraindications, skillType, id) stay English/locale-independent.
+
+type ParentToolText = {
+  title: string;
+  whenToUse: string;
+  parentAction: string;
+  exactWords: string;
+  whyItHelps: string;
+};
+
+const PARENT_TOOLS_TEXT_ES: Record<string, ParentToolText> = {
+  // ── Emotional tools ────────────────────────────────────────────────────────
+  the_sand_timer: {
+    title: "El Reloj de Arena",
+    whenToUse: "Cuando una emoción parece que va a durar para siempre.",
+    parentAction:
+      "Muéstrale un pequeño temporizador, o simplemente recuérdale que las emociones tienen un comienzo y un final.",
+    exactWords: "Esto está difícil ahora mismo. Solo tenemos que surfear la ola un ratito.",
+    whyItHelps: "Encuadra una emoción grande como algo temporal, lo que la hace más fácil de sostener.",
+  },
+  sometimes_not_always: {
+    title: "A Veces, No Siempre",
+    whenToUse: "Cuando tu peque dice \"siempre\" o \"nunca\".",
+    parentAction: "Cambia con suavidad la palabra absoluta por una más blanda.",
+    exactWords: "Se siente como que es siempre. ¿Podemos encontrar una vez en que fue distinto?",
+    whyItHelps: "Evita que un momento difícil se convierta en toda la historia.",
+  },
+  color_and_place: {
+    title: "Color y Lugar",
+    whenToUse: "Cuando la emoción es fuerte y cuesta encontrar las palabras.",
+    parentAction: "Pregúntale dónde vive la emoción en su cuerpo y de qué color podría ser.",
+    exactWords: "¿Dónde está la emoción ahora mismo: en tu panza, tu pecho o tus manos?",
+    whyItHelps: "Lleva al peque del desborde a una observación suave.",
+  },
+  what_if: {
+    title: "¿Y Si...?",
+    whenToUse: "Cuando el peque se queda atascado en un solo resultado.",
+    parentAction: "Jueguen juntos a imaginar un par de alternativas pequeñas.",
+    exactWords: "¿Y si lo intentáramos de otra manera?",
+    whyItHelps: "Desarrolla el pensamiento flexible y la idea de que las acciones pueden cambiar una situación.",
+  },
+  three_anchors: {
+    title: "Tres Anclas",
+    whenToUse: "Para la preocupación, las vueltas en la cabeza o el exceso de estímulos.",
+    parentAction: "Nombren tres cosas que ven, dos que oyen y una que sienten en el cuerpo.",
+    exactWords: "Busquemos tres cosas reales que tengamos alrededor ahora mismo.",
+    whyItHelps: "Trae la atención de vuelta a la habitación y al cuerpo.",
+  },
+  what_else_could_be_true: {
+    title: "¿Qué Más Podría Ser Verdad?",
+    whenToUse: "Cuando el peque se aferra a una sola explicación que da miedo.",
+    parentAction: "Ofrécele otra posibilidad suave, sin debatir.",
+    exactWords: "Tal vez esa sea una razón. ¿Qué más podría ser verdad?",
+    whyItHelps: "Amplía el panorama y baja la sensación de amenaza.",
+  },
+  rarely_not_never: {
+    title: "Pocas Veces, No Nunca",
+    whenToUse: "Cuando tu peque dice \"nunca puedo\".",
+    parentAction: "Protege la esperanza suavizando la palabra.",
+    exactWords: "Tal vez no es nunca. Tal vez pocas veces, y podemos practicar.",
+    whyItHelps: "Deja espacio para crecer y para las excepciones.",
+  },
+  not_all_about_me: {
+    title: "No Todo Es Por Mí",
+    whenToUse: "Después de que algo no salió bien.",
+    parentAction: "Separa lo que dependía de tu peque de lo que dependía de la situación.",
+    exactWords: "¿Esto fue por ti, por la situación o un poco de las dos?",
+    whyItHelps: "Protege la autoestima y alivia la vergüenza tras un tropiezo.",
+  },
+  what_can_we_do: {
+    title: "¿Qué Podemos Hacer?",
+    whenToUse: "Para las pequeñas decepciones de cada día.",
+    parentAction: "Nombra el problema en voz alta y luego piensen juntos una acción simple.",
+    exactWords: "El parque está cerrado. ¿Qué podemos hacer en su lugar?",
+    whyItHelps: "Crea el hábito de actuar en vez de sentirse sin salida.",
+  },
+  what_next: {
+    title: "¿Y Ahora Qué?",
+    whenToUse: "Una vez que ya reconociste algo difícil.",
+    parentAction: "Avancen con suavidad de la emoción hacia la próxima pequeña acción.",
+    exactWords: "Sí, eso fue difícil. ¿Qué podemos hacer ahora?",
+    whyItHelps: "Sostiene una esperanza realista sin dejar de lado la emoción.",
+  },
+  remember_when: {
+    title: "¿Te Acuerdas Cuando...?",
+    whenToUse: "Cuando tu peque duda de sí mismo.",
+    parentAction: "Recuerda un momento específico en que lo logró antes.",
+    exactWords: "¿Te acuerdas cuando lo volviste a intentar la última vez?",
+    whyItHelps: "Convierte un logro pasado en apoyo para este momento.",
+  },
+  capture_the_win: {
+    title: "Captura el Logro",
+    whenToUse: "Justo después de que tu peque manejó algo difícil.",
+    parentAction: "Márcalo: una foto, una nota de voz o una frase dicha en voz alta.",
+    exactWords: "Lo lograste incluso cuando estaba difícil.",
+    whyItHelps: "Hace que un logro sea más fácil de recordar y de usar la próxima vez.",
+  },
+  name_and_step_back: {
+    title: "Nombrar y Tomar Distancia",
+    whenToUse: "Cuando tu peque parece convertirse en la emoción.",
+    parentAction: "Separa con suavidad al peque de la emoción.",
+    exactWords: "El enojo está de visita ahora mismo. Tú eres más grande que el enojo.",
+    whyItHelps: "Crea un poco de distancia entre el peque y la emoción.",
+  },
+  the_attempt_mark: {
+    title: "La Marca del Intento",
+    whenToUse: "Después de un intento que no funcionó.",
+    parentAction: "Haz una pequeña marca de \"un intento\" y muestra que la página sigue.",
+    exactWords: "Esto fue un intento, no toda la historia.",
+    whyItHelps: "Mantiene un tropiezo separado de quién es tu peque.",
+  },
+  what_did_we_learn: {
+    title: "¿Qué Aprendimos?",
+    whenToUse: "Después de que algo no salió como esperaban.",
+    parentAction: "Haz una pregunta de aprendizaje en vez de saltar a resolverlo.",
+    exactWords: "¿Qué aprendimos de este intento?",
+    whyItHelps: "Convierte un momento frustrante en experiencia útil.",
+  },
+  blow_out_five_candles: {
+    title: "Apaga Cinco Velas",
+    whenToUse: "Cuando las emociones son demasiado grandes para pensar.",
+    parentAction: "Levanta cinco dedos y baja uno después de cada respiración lenta.",
+    exactWords: "Apaga cinco velitas conmigo.",
+    whyItHelps: "Calma un poco el cuerpo antes de cualquier solución.",
+  },
+  split_the_feeling: {
+    title: "Repartir la Emoción",
+    whenToUse: "Cuando tu peque se siente solo con una emoción grande.",
+    parentAction: "Hagan como que parten la emoción en dos y sostén la mitad con él.",
+    exactWords: "Dame la mitad de esa emoción. La puedo sostener contigo.",
+    whyItHelps: "Crea conexión y una sensación de seguridad en el momento.",
+  },
+  light_switch_thought: {
+    title: "El Pensamiento Interruptor",
+    whenToUse: "Cuando un pensamiento parece apagar a tu peque.",
+    parentAction: "Pregúntale si ese pensamiento le enciende o le apaga la luz.",
+    exactWords: "¿Ese pensamiento te enciende o te apaga la luz?",
+    whyItHelps: "Ayuda a notar un pensamiento sin tener que pelear con él.",
+  },
+  mirror_moment: {
+    title: "Momento Espejo",
+    whenToUse: "Para peques más grandes que ya pueden observarse un poco.",
+    parentAction: "Mírense juntos en un espejo y nombren la emoción por unos segundos.",
+    exactWords: "Estoy enojado ahora mismo, y puedo verlo.",
+    whyItHelps: "Convierte una emoción difusa en algo que pueden observar.",
+  },
+
+  // ── Parent skills ──────────────────────────────────────────────────────────
+  what_is_our_plan: {
+    title: "¿Cuál Es Nuestro Plan?",
+    whenToUse: "Antes de una transición o al empezar el día.",
+    parentAction: "Di el orden en voz alta: ahora, después, fin.",
+    exactWords: "Primero los zapatos, después el auto, después el parque.",
+    whyItHelps: "La previsibilidad puede bajar la ansiedad y reducir los roces.",
+  },
+  clear_steps: {
+    title: "Pasos Claros",
+    whenToUse: "Cuando tu peque duda antes de empezar.",
+    parentAction: "Da una sola instrucción simple a la vez.",
+    exactWords: "Primero pon el bloque azul aquí. Eso es todo.",
+    whyItHelps: "Un pasito a la vez baja la carga mental.",
+  },
+  quiet_lighthouse: {
+    title: "Faro Tranquilo",
+    whenToUse: "Durante una tormenta emocional fuerte.",
+    parentAction: "Ponte a su altura, respira despacio, di muy poco y quédate presente.",
+    exactWords: "Estoy aquí.",
+    whyItHelps: "Tu calma se vuelve un ancla firme que tu peque puede tomar prestada.",
+  },
+  two_choices: {
+    title: "Dos Opciones",
+    whenToUse: "Cuando tu peque está desbordado o se niega.",
+    parentAction: "Ofrece exactamente dos opciones que puedas aceptar con gusto.",
+    exactWords: "¿Quieres empezar con los bloques o con la manta?",
+    whyItHelps: "Le da una sensación de control dentro de límites seguros.",
+  },
+  name_and_share: {
+    title: "Nombrar y Acompañar",
+    whenToUse: "Cuando tu peque tiene una emoción clara.",
+    parentAction: "Nombra la emoción y hazle saber que estás ahí con él.",
+    exactWords: "Sientes tristeza. Puedo acompañarte con una parte de esa tristeza.",
+    whyItHelps: "Hace que una emoción sea más entendible y menos solitaria.",
+  },
+  small_control: {
+    title: "Pequeño Control",
+    whenToUse: "Cuando tu peque se siente sin poder.",
+    parentAction: "Pídele una sola cosa que pueda elegir o influir.",
+    exactWords: "No podemos cambiar esa parte. ¿Qué podemos elegir ahora?",
+    whyItHelps: "Devuelve una sensación de control de forma pequeña y posible.",
+  },
+  where_do_we_start: {
+    title: "¿Por Dónde Empezamos?",
+    whenToUse: "Una vez que la emoción se ha suavizado.",
+    parentAction: "Divide lo difícil en un primer pasito.",
+    exactWords: "No tenemos que resolverlo todo. ¿Cuál es el primer pasito?",
+    whyItHelps: "Convierte el desborde en un poquito de movimiento.",
+  },
+  plan_b: {
+    title: "Plan B",
+    whenToUse: "Antes o después de una decepción probable.",
+    parentAction: "Hagan juntos un plan de respaldo, con tiempo cuando se pueda.",
+    exactWords: "Si el primer plan no funciona, ¿cuál es nuestro Plan B?",
+    whyItHelps: "Hace que los tropiezos se sientan menos de todo o nada.",
+  },
+  one_more_step: {
+    title: "Un Paso Más",
+    whenToUse: "Cuando tu peque quiere parar pero podría hacer un poquito más.",
+    parentAction: "Pídele un último pasito y luego para exactamente como prometiste.",
+    exactWords: "Una pieza más y paramos.",
+    whyItHelps: "Desarrolla una constancia suave sin presión.",
+  },
+  talk_in_calm_not_storm: {
+    title: "Hablar en Calma, No en Tormenta",
+    whenToUse: "Para una conducta difícil que se repite.",
+    parentAction: "No enseñes durante el berrinche: habla después, cuando ya estén tranquilos.",
+    exactWords: "Hablemos de la próxima vez, ahora que los dos estamos tranquilos.",
+    whyItHelps: "El aprendizaje cala mejor cuando el sistema nervioso se ha calmado.",
+  },
+  parent_self_talk: {
+    title: "Diálogo Interno del Adulto",
+    whenToUse: "Cuando cometes un pequeño error frente a tu peque.",
+    parentAction: "Deja que te escuche hablarte con calma a ti mismo.",
+    exactWords: "Eso no funcionó. Me siento frustrado, así que voy a probar un paso más pequeño.",
+    whyItHelps: "Los peques adoptan la voz interna que ven en los adultos a su alrededor.",
+  },
+};
+
+/**
+ * Locale-aware view of a parent tool. Returns the tool unchanged for English;
+ * for Spanish, overlays the translated text fields keyed by tool id. Falls back
+ * to the unchanged tool when no translation exists for the id.
+ */
+export function localizeParentTool<T extends { id: string }>(tool: T, locale: Locale): T {
+  if (locale !== "es") return tool;
+  const text = PARENT_TOOLS_TEXT_ES[tool.id];
+  return text ? { ...tool, ...text } : tool;
+}
+
 // ── Lookups & helpers ────────────────────────────────────────────────────────
 
 const TOOLS_BY_ID: Record<string, ParentTool> = Object.fromEntries(

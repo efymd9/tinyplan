@@ -50,7 +50,10 @@ export default async function DashboardLayout({
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 border-b border-border-whisper glass-bar shadow-xs">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href={localizeHref("/dashboard/today", lang as Locale)} aria-label="TinyPlan home">
+          <Link
+            href={localizeHref("/dashboard/today", lang as Locale)}
+            aria-label={lang === "es" ? "Inicio de TinyPlan" : "TinyPlan home"}
+          >
             <BrandLogo width={130} priority />
           </Link>
           <div className="flex items-center gap-2">
