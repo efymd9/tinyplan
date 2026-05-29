@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 export const metadata: Metadata = {
   title: "Terms of Service — TinyPlan",
@@ -8,16 +10,21 @@ export const metadata: Metadata = {
     "Terms of Service for TinyPlan, a personalized play and routine planning service for parents.",
 };
 
-export default function TermsOfServicePage() {
+export default async function TermsOfServicePage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-md border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link href="/" aria-label="TinyPlan home">
+          <Link href={localizeHref("/", lang as Locale)} aria-label="TinyPlan home">
             <BrandLogo width={130} />
           </Link>
           <Link
-            href="/"
+            href={localizeHref("/", lang as Locale)}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Back to home
@@ -211,7 +218,7 @@ export default function TermsOfServicePage() {
           <p>&copy; 2025 TinyPlan. All rights reserved.</p>
           <div className="flex gap-6">
             <Link
-              href="/privacy"
+              href={localizeHref("/privacy", lang as Locale)}
               className="hover:text-foreground transition-colors"
             >
               Privacy Policy

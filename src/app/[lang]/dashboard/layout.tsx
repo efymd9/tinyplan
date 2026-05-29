@@ -6,16 +6,21 @@ import { ProfileMenu } from "@/components/dashboard/profile-menu";
 import { getActivePlan, getDayLogs, getTodayDayNumber } from "@/lib/dashboard/helpers";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ lang: string }>;
 }) {
+  const { lang } = await params;
   const user = await getCurrentUser();
-  if (!user) redirect("/auth/login");
+  if (!user) redirect(localizeHref("/auth/login", lang as Locale));
 
   let progress: {
     completedCount: number;
@@ -45,7 +50,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 border-b border-border-whisper glass-bar shadow-xs">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/dashboard/today" aria-label="TinyPlan home">
+          <Link href={localizeHref("/dashboard/today", lang as Locale)} aria-label="TinyPlan home">
             <BrandLogo width={130} priority />
           </Link>
           <div className="flex items-center gap-2">

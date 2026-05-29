@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 export function StickyMobileCTA() {
   const [show, setShow] = useState(false);
+  const locale = useLocale();
 
   useEffect(() => {
     const onScroll = () => setShow(window.scrollY > 560);
@@ -20,7 +23,7 @@ export function StickyMobileCTA() {
       }`}
     >
       <Link
-        href="/quiz"
+        href={localizeHref("/quiz", locale)}
         className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary text-[17px] font-semibold text-white cta-glow active:scale-[0.98]"
       >
         Build my free plan

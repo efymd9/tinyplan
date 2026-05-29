@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 const navItems = [
   { href: "/dashboard/today", label: "Today", icon: "sun" },
@@ -45,15 +47,17 @@ interface ProgressInfo {
 
 export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; userEmail?: string }) {
   const pathname = usePathname();
+  const locale = useLocale();
 
   return (
     <nav className="hidden md:flex flex-col gap-1 w-56 shrink-0 p-5 pt-6 border-r border-border-whisper">
       {navItems.map((item) => {
-        const active = pathname.startsWith(item.href);
+        const href = localizeHref(item.href, locale);
+        const active = pathname.startsWith(href);
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={href}
             className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
               active
                 ? "bg-primary-light text-primary font-semibold shadow-xs"
@@ -102,16 +106,18 @@ export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; u
 
 export function MobileNav() {
   const pathname = usePathname();
+  const locale = useLocale();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-bar border-t border-border-whisper shadow-sticky">
       <div className="flex justify-around py-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {navItems.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const href = localizeHref(item.href, locale);
+          const active = pathname.startsWith(href);
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               className={`relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all min-h-[48px] min-w-[48px] justify-center ${
                 active ? "text-primary" : "text-muted-foreground active:scale-95"
               }`}

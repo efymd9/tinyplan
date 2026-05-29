@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProfileIllustration, SpotIcon } from "@/components/illustrations/activity-illustrations";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 export const metadata = { title: "Your TinyPlan is Ready" };
 
@@ -36,12 +38,17 @@ function deriveFallbackSoWeCreated(plan: {
   return items.slice(0, 4);
 }
 
-export default async function PlanRevealPage() {
+export default async function PlanRevealPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   const user = await getCurrentUser();
-  if (!user) redirect("/auth/login");
+  if (!user) redirect(localizeHref("/auth/login", lang as Locale));
 
   const plan = getActivePlan(user.id);
-  if (!plan) redirect("/quiz");
+  if (!plan) redirect(localizeHref("/quiz", lang as Locale));
 
   const weeklyPlan = parseWeeklyPlan(plan.plan_json);
   const activityCount = weeklyPlan.days.length;
@@ -170,14 +177,14 @@ export default async function PlanRevealPage() {
 
         <div className="space-y-3">
           <div className="rounded-[1.25rem] bg-gradient-to-br from-primary/10 via-primary-light/40 to-transparent p-[2px]">
-            <Link href="/dashboard/today" className="block">
+            <Link href={localizeHref("/dashboard/today", lang as Locale)} className="block">
               <Button size="lg" className="w-full text-lg rounded-[1.15rem]">
                 Start Day 1
               </Button>
             </Link>
           </div>
           <Link
-            href="/dashboard/week"
+            href={localizeHref("/dashboard/week", lang as Locale)}
             className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 font-medium"
           >
             View full week

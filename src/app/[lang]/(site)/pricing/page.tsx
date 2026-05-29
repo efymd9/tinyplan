@@ -9,11 +9,14 @@ import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/brand-logo";
 import { buildTagProfile, getProfileDisplayName, getGoalDisplayText } from "@/lib/quiz/tags";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 
 function PricingContent() {
   const router = useRouter();
+  const locale = useLocale();
   const { track } = useAnalytics();
   const [loading, setLoading] = useState(false);
 
@@ -62,10 +65,10 @@ function PricingContent() {
       if (result.url) {
         window.location.href = result.url;
       } else {
-        router.push("/checkout/success?session_id=mock");
+        router.push(localizeHref("/checkout/success", locale) + "?session_id=mock");
       }
     } catch {
-      router.push("/checkout/success?session_id=mock");
+      router.push(localizeHref("/checkout/success", locale) + "?session_id=mock");
     }
   };
 
@@ -87,11 +90,11 @@ function PricingContent() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-md border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Link href="/" aria-label="TinyPlan home">
+          <Link href={localizeHref("/", locale)} aria-label="TinyPlan home">
             <BrandLogo width={130} />
           </Link>
           <Link
-            href="/result"
+            href={localizeHref("/result", locale)}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             Back to results
@@ -187,10 +190,10 @@ function PricingContent() {
             No extra screen time for your child — just simple activities for real life.
           </p>
           <div className="flex justify-center gap-4 pt-2">
-            <Link href="/privacy" className="text-xs text-muted-foreground underline">
+            <Link href={localizeHref("/privacy", locale)} className="text-xs text-muted-foreground underline">
               Privacy Policy
             </Link>
-            <Link href="/terms" className="text-xs text-muted-foreground underline">
+            <Link href={localizeHref("/terms", locale)} className="text-xs text-muted-foreground underline">
               Terms
             </Link>
           </div>

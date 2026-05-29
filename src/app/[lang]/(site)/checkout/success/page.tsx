@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 
 function SuccessContent() {
   const { track } = useAnalytics();
   const router = useRouter();
+  const locale = useLocale();
 
   const parsedAnswers = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -31,7 +34,7 @@ function SuccessContent() {
     track({ event: "purchase_completed", properties: { amount: 100 } });
 
     if (!parsedAnswers) {
-      router.replace("/dashboard/reveal");
+      router.replace(localizeHref("/dashboard/reveal", locale));
       return;
     }
 
@@ -49,14 +52,14 @@ function SuccessContent() {
       })
       .then(() => {
         sessionStorage.removeItem(RESULT_STORAGE_KEY);
-        router.replace("/dashboard/reveal");
+        router.replace(localizeHref("/dashboard/reveal", locale));
       })
       .catch((err) => {
         console.error("Plan generation error:", err);
         setError("Failed to generate your plan. Please try again.");
         generatingRef.current = false;
       });
-  }, [track, parsedAnswers, router]);
+  }, [track, parsedAnswers, router, locale]);
 
   if (error) {
     return (
@@ -69,7 +72,7 @@ function SuccessContent() {
           </div>
           <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Link href="/quiz">
+          <Link href={localizeHref("/quiz", locale)}>
             <Button size="lg" className="w-full">Retake Quiz</Button>
           </Link>
         </div>

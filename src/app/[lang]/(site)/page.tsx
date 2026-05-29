@@ -9,6 +9,8 @@ import {
   type IconTileTint,
   type LandingIconName,
 } from "@/components/landing/landing-icons";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 /* ── Content ──────────────────────────────────────────────── */
 
@@ -385,13 +387,18 @@ function Chevron() {
 
 /* ── Page ─────────────────────────────────────────────────── */
 
-export default function LandingPage() {
+export default async function LandingPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border-whisper bg-card/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" aria-label="TinyPlan home" className="flex items-center">
+          <Link href={localizeHref("/", lang as Locale)} aria-label="TinyPlan home" className="flex items-center">
             <BrandLogo width={132} priority />
           </Link>
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
@@ -416,12 +423,12 @@ export default function LandingPage() {
           </nav>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link
-              href="/auth/login"
+              href={localizeHref("/auth/login", lang as Locale)}
               className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
             >
               Log in
             </Link>
-            <Link href="/quiz">
+            <Link href={localizeHref("/quiz", lang as Locale)}>
               <Button size="sm" className="rounded-full px-5">
                 Build my plan
               </Button>
@@ -459,7 +466,7 @@ export default function LandingPage() {
                 className="landing-reveal mt-8 flex flex-col items-center gap-4 sm:flex-row lg:items-start"
                 style={{ animationDelay: "180ms" }}
               >
-                <Link href="/quiz" className="w-full sm:w-auto">
+                <Link href={localizeHref("/quiz", lang as Locale)} className="w-full sm:w-auto">
                   <Button size="lg" className="w-full rounded-full px-10 sm:w-auto">
                     Build my free plan
                   </Button>
@@ -659,7 +666,7 @@ export default function LandingPage() {
               <p className="text-sm font-medium text-foreground/80">
                 Five pieces. One simple plan. Built fresh for each of your 7 days.
               </p>
-              <Link href="/quiz" className="mt-4">
+              <Link href={localizeHref("/quiz", lang as Locale)} className="mt-4">
                 <Button size="sm" variant="outline" className="rounded-full">
                   Build my free plan
                 </Button>
@@ -931,13 +938,13 @@ export default function LandingPage() {
               </ul>
 
               <div className="mt-8">
-                <Link href="/quiz">
+                <Link href={localizeHref("/quiz", lang as Locale)}>
                   <Button size="lg" className="w-full rounded-full">
                     Build my free plan
                   </Button>
                 </Link>
                 <Link
-                  href="/pricing"
+                  href={localizeHref("/pricing", lang as Locale)}
                   className="mt-4 inline-block text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
                 >
                   See full plan &amp; pricing
@@ -983,7 +990,7 @@ export default function LandingPage() {
               your real life.
             </p>
             <div className="mt-8">
-              <Link href="/quiz">
+              <Link href={localizeHref("/quiz", lang as Locale)}>
                 <Button size="lg" className="rounded-full px-12">
                   Build my free plan
                 </Button>
@@ -1005,10 +1012,10 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-6 text-sm text-muted-foreground sm:flex-row">
           <p>&copy; 2026 TinyPlan. All rights reserved.</p>
           <div className="flex gap-8">
-            <Link href="/privacy" className="transition-colors hover:text-foreground">
+            <Link href={localizeHref("/privacy", lang as Locale)} className="transition-colors hover:text-foreground">
               Privacy Policy
             </Link>
-            <Link href="/terms" className="transition-colors hover:text-foreground">
+            <Link href={localizeHref("/terms", lang as Locale)} className="transition-colors hover:text-foreground">
               Terms of Service
             </Link>
             <a href="mailto:hello@tinyplan.app" className="transition-colors hover:text-foreground">

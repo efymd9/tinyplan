@@ -19,6 +19,8 @@ import { InsightCard } from "@/components/ui/insight-card";
 import { EmptyStateCard } from "@/components/ui/empty-state-card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 export const metadata = { title: "Progress — TinyPlan" };
 
@@ -28,7 +30,12 @@ function tinyWinMoment(activityTitle: string, status: string): string {
   return `"${activityTitle}" — logged and learned from.`;
 }
 
-export default async function ProgressPage() {
+export default async function ProgressPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -44,7 +51,7 @@ export default async function ProgressPage() {
         </div>
         <h1 className="text-2xl font-bold mb-2">No progress yet</h1>
         <p className="text-muted-foreground mb-6">Start your plan to see how things are going here.</p>
-        <Link href="/quiz"><Button size="lg">Start the Quiz</Button></Link>
+        <Link href={localizeHref("/quiz", lang as Locale)}><Button size="lg">Start the Quiz</Button></Link>
       </div>
     );
   }

@@ -11,6 +11,8 @@ import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import { PARENT_GROWTH_PATH, getSkillByDay } from "@/data/parent-growth-path";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 export const metadata = { title: "Your 7-Day Parent Growth Path — TinyPlan" };
 
@@ -151,7 +153,12 @@ function buildWhyThisWeek(weeklyPlan: {
   return opening + body + closing;
 }
 
-export default async function WeekPage() {
+export default async function WeekPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -169,7 +176,7 @@ export default async function WeekPage() {
         <p className="text-muted-foreground mb-6">
           Complete the quiz to get your personalised 7-day plan.
         </p>
-        <Link href="/quiz">
+        <Link href={localizeHref("/quiz", lang as Locale)}>
           <Button size="lg">Start the Quiz</Button>
         </Link>
       </div>
@@ -337,7 +344,7 @@ export default async function WeekPage() {
                       </div>
 
                       {isToday && (
-                        <Link href="/dashboard/today" className="shrink-0">
+                        <Link href={localizeHref("/dashboard/today", lang as Locale)} className="shrink-0">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary-light px-2.5 py-1 rounded-full shadow-xs">
                             Go
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

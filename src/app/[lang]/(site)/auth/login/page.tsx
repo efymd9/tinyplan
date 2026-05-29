@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/brand-logo";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 export default function LoginPage() {
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,7 +45,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-lg mx-auto">
-          <Link href="/" aria-label="TinyPlan home">
+          <Link href={localizeHref("/", locale)} aria-label="TinyPlan home">
             <BrandLogo width={130} priority />
           </Link>
         </div>

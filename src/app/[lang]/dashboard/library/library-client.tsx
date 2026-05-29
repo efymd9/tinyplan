@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { SpotIcon } from "@/components/illustrations/activity-illustrations";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 import { sosScripts } from "@/data/sos-scripts";
 import type { SosScript } from "@/data/sos-scripts";
 import { PARENT_GROWTH_PATH } from "@/data/parent-growth-path";
@@ -214,6 +217,7 @@ function ActivityCard({
   isSaved?: boolean;
   onToggleSave?: (id: string) => void;
 }) {
+  const locale = useLocale();
   const steps: string[] = activity.steps_json
     ? (JSON.parse(activity.steps_json) as string[])
     : [];
@@ -293,22 +297,22 @@ function ActivityCard({
             {!isExpanded && (
               <div className="flex gap-2 mt-2">
                 {isToday ? (
-                  <a
-                    href="/dashboard/today"
+                  <Link
+                    href={localizeHref("/dashboard/today", locale)}
                     onClick={(e) => e.stopPropagation()}
                     className="text-[11px] font-medium px-3 py-1 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors shadow-xs"
                   >
                     Open
-                  </a>
+                  </Link>
                 ) : (
                   showSwap && (
-                    <a
-                      href="/dashboard/today"
+                    <Link
+                      href={localizeHref("/dashboard/today", locale)}
                       onClick={(e) => e.stopPropagation()}
                       className="text-[11px] font-medium px-3 py-1 rounded-full border border-primary/20 bg-primary-light text-primary hover:bg-primary/10 transition-colors"
                     >
                       Swap into today
-                    </a>
+                    </Link>
                   )
                 )}
               </div>
@@ -439,7 +443,7 @@ function ActivityCard({
             {showSwap && !isToday && (
               <button
                 onClick={() => {
-                  window.location.href = `/dashboard/today`;
+                  window.location.href = localizeHref("/dashboard/today", locale);
                 }}
                 className="text-xs font-medium px-4 py-2.5 rounded-full border border-primary/20 bg-primary-light text-primary hover:bg-primary/10 transition-colors"
               >
@@ -447,12 +451,12 @@ function ActivityCard({
               </button>
             )}
             {isToday && (
-              <a
-                href="/dashboard/today"
+              <Link
+                href={localizeHref("/dashboard/today", locale)}
                 className="text-xs font-medium px-4 py-2.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors shadow-xs"
               >
                 Open today&apos;s activity
-              </a>
+              </Link>
             )}
             {onToggleSave && (
               <button

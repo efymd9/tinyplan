@@ -5,10 +5,13 @@ import { useEffect, useState, Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 function VerifyContent() {
   const params = useSearchParams();
   const router = useRouter();
+  const locale = useLocale();
   const token = params.get("token");
   const [status, setStatus] = useState<"verifying" | "success" | "error">(
     token ? "verifying" : "error"
@@ -24,13 +27,13 @@ function VerifyContent() {
       .then((res) => {
         if (res.ok) {
           setStatus("success");
-          setTimeout(() => router.push("/dashboard"), 1500);
+          setTimeout(() => router.push(localizeHref("/dashboard", locale)), 1500);
         } else {
           setStatus("error");
         }
       })
       .catch(() => setStatus("error"));
-  }, [token, router]);
+  }, [token, router, locale]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -63,7 +66,7 @@ function VerifyContent() {
             <p className="text-muted-foreground text-sm mb-4">
               This link may have expired. Please request a new one.
             </p>
-            <Link href="/auth/login">
+            <Link href={localizeHref("/auth/login", locale)}>
               <Button>Request new link</Button>
             </Link>
           </>

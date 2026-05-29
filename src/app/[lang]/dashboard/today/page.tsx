@@ -19,6 +19,8 @@ import {
 import { ActivityActions } from "@/components/dashboard/activity-actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 export const metadata = { title: "Today — TinyPlan" };
 
@@ -214,7 +216,12 @@ function CheckCircleIcon() {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function TodayPage() {
+export default async function TodayPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -233,7 +240,7 @@ export default async function TodayPage() {
           Complete the quiz so we can build your first weekly plan.
         </p>
         <p className="text-sm text-muted-foreground mb-6">It takes about 3 minutes.</p>
-        <Link href="/quiz">
+        <Link href={localizeHref("/quiz", lang as Locale)}>
           <Button size="lg">Start the Quiz</Button>
         </Link>
       </div>
@@ -262,10 +269,10 @@ export default async function TodayPage() {
           {completedCount} meaningful moments this week. That&apos;s something to be proud of.
         </p>
         <div className="flex gap-3 justify-center mt-6">
-          <Link href="/dashboard/progress">
+          <Link href={localizeHref("/dashboard/progress", lang as Locale)}>
             <Button>View Progress</Button>
           </Link>
-          <Link href="/dashboard/library">
+          <Link href={localizeHref("/dashboard/library", lang as Locale)}>
             <Button variant="outline">Browse Library</Button>
           </Link>
         </div>
@@ -417,7 +424,7 @@ export default async function TodayPage() {
         {/* Mobile: tomorrow preview */}
         {tomorrowPlan && (
           <Link
-            href="/dashboard/week"
+            href={localizeHref("/dashboard/week", lang as Locale)}
             className="lg:hidden flex items-center justify-between bg-muted/50 border border-border-whisper rounded-xl p-4 mb-5 hover:bg-muted transition-colors"
           >
             <div className="min-w-0">
@@ -446,7 +453,7 @@ export default async function TodayPage() {
             ].map((item) => (
               <Link
                 key={item.label}
-                href={item.href}
+                href={localizeHref(item.href, lang as Locale)}
                 className="shrink-0 text-xs font-medium px-3.5 py-2 rounded-full bg-muted/80 shadow-xs hover:bg-border transition-colors min-h-[44px] flex items-center"
               >
                 {item.label}
@@ -495,7 +502,7 @@ export default async function TodayPage() {
           </div>
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <span>{completedCount}/7 meaningful moments</span>
-            <Link href="/dashboard/week" className="text-primary font-medium hover:underline">
+            <Link href={localizeHref("/dashboard/week", lang as Locale)} className="text-primary font-medium hover:underline">
               View all
             </Link>
           </div>
@@ -514,7 +521,7 @@ export default async function TodayPage() {
             ].map((item) => (
               <Link
                 key={item.label}
-                href={item.href}
+                href={localizeHref(item.href, lang as Locale)}
                 className="text-xs font-medium px-3 py-2.5 rounded-full bg-muted/80 shadow-xs hover:bg-border transition-colors text-center"
               >
                 {item.label}

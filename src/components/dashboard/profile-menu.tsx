@@ -33,6 +33,7 @@ export function ProfileMenu({ email }: { email: string }) {
           <p className="text-xs text-muted-foreground px-4 py-2 truncate border-b border-border-whisper">
             {email}
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/auth/logout"
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg mx-1"

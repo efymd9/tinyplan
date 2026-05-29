@@ -18,6 +18,8 @@ import { deriveRoutine } from "@/lib/routines/routines";
 import { getHardMomentDisplay } from "@/lib/personalization/personalize";
 import { ProfileIllustration, SpotIcon } from "@/components/illustrations/activity-illustrations";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 
@@ -31,6 +33,7 @@ const TIME_DISPLAY: Record<string, string> = {
 
 function ResultContent() {
   const { track } = useAnalytics();
+  const locale = useLocale();
   const [loading, setLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -67,7 +70,7 @@ function ResultContent() {
           <p className="text-muted-foreground mb-4">
             Take the 3-minute quiz to get your personalized plan.
           </p>
-          <Link href="/quiz">
+          <Link href={localizeHref("/quiz", locale)}>
             <Button>Start the quiz</Button>
           </Link>
         </div>
@@ -150,7 +153,7 @@ function ResultContent() {
     <div className="min-h-screen surface-warm-gradient pb-28">
       <header className="sticky top-0 z-40 glass-bar border-b border-border-whisper px-4 py-3 shadow-xs">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Link href="/" aria-label="TinyPlan home">
+          <Link href={localizeHref("/", locale)} aria-label="TinyPlan home">
             <BrandLogo width={130} priority />
           </Link>
           <span className="text-xs font-medium text-secondary bg-secondary-light px-3 py-1 rounded-full">

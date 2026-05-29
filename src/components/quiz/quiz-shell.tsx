@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getVisibleScreens, type QuizScreen } from "@/lib/quiz/questions";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { localizeHref } from "@/lib/i18n/href";
 
 const STORAGE_KEY = "tinyplan_quiz";
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
@@ -46,6 +49,7 @@ function saveState(state: QuizState) {
 
 export function QuizShell() {
   const router = useRouter();
+  const locale = useLocale();
   const { track } = useAnalytics();
   const [state, setState] = useState<QuizState>(loadState);
   const [loadingStep, setLoadingStep] = useState(0);
@@ -80,9 +84,9 @@ export function QuizShell() {
           JSON.stringify({ answers, email })
         );
       } catch {}
-      router.push("/result");
+      router.push(localizeHref("/result", locale));
     },
-    [router]
+    [router, locale]
   );
 
   const goNext = useCallback(() => {
@@ -626,6 +630,7 @@ function EmailScreen({
   onChange: (v: string) => void;
   onSubmit: () => void;
 }) {
+  const locale = useLocale();
   return (
     <div className="text-center py-10 animate-slide-up">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-light to-primary/10 shadow-elevated flex items-center justify-center mx-auto mb-6">
@@ -655,9 +660,9 @@ function EmailScreen({
           </svg>
           <span>
             We respect your data.{" "}
-            <a href="/privacy" className="underline hover:text-foreground transition-colors">
+            <Link href={localizeHref("/privacy", locale)} className="underline hover:text-foreground transition-colors">
               Privacy Policy
-            </a>
+            </Link>
           </span>
         </div>
       </div>

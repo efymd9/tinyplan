@@ -6,6 +6,8 @@ import { LibraryClient } from "./library-client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FALLBACK_ACTIVITIES } from "@/lib/engine/fallback-activities";
+import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 import type { PlanActivity } from "@/lib/engine/plan-generator";
 
@@ -75,7 +77,12 @@ function getCurrentUnixSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-export default async function LibraryPage() {
+export default async function LibraryPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -162,7 +169,7 @@ export default async function LibraryPage() {
         <p className="text-muted-foreground mb-6">
           Take the quick quiz to get a personalised weekly plan for your child.
         </p>
-        <Link href="/quiz">
+        <Link href={localizeHref("/quiz", lang as Locale)}>
           <Button size="lg">Start the Quiz</Button>
         </Link>
       </div>
