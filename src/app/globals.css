@@ -1,26 +1,353 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Spec design tokens (TinyPlan rebuild) ───────────────── */
+  --background: #FBF7F0; /* cream */
+  --foreground: #2D2B29; /* text primary */
+  --primary: #EF815B; /* warm coral */
+  --primary-hover: #E06A43;
+  --primary-light: #FCE8DF;
+  --primary-glow: rgba(239, 129, 91, 0.14);
+  --secondary: #6C9B83; /* sage */
+  --secondary-light: #EEF7F1; /* sageLight */
+  --accent: #D8B542; /* yellow */
+  --accent-light: #FFF7DF; /* yellowLight */
+  --accent-dark: #A8861F;
+  --lavender: #7E5CA8;
+  --lavender-light: #F4EEF8;
+  --muted: #F0EAE2;
+  --muted-foreground: #8A8580; /* text secondary */
+  --border: #E9E1DA;
+  --border-whisper: #F2ECE4;
+  --card: #FFFFFF; /* surface */
+  --card-foreground: #2D2B29;
+  --card-elevated: #FFFFFF;
+  --surface-sunken: #F6F1EB;
+  --destructive: #D9684E;
+  --success: #6C9B83;
+  --info: #4A7BAF;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-light: var(--secondary-light);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
+  --color-lavender: var(--lavender);
+  --color-lavender-light: var(--lavender-light);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-whisper: var(--border-whisper);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-card-elevated: var(--card-elevated);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-info: var(--info);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.03);
+  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04), 0 3px 10px rgba(28, 25, 23, 0.03);
+  --shadow-card-hover: 0 2px 4px rgba(28, 25, 23, 0.05), 0 8px 24px rgba(28, 25, 23, 0.06);
+  --shadow-elevated: 0 1px 3px rgba(28, 25, 23, 0.06), 0 6px 16px rgba(28, 25, 23, 0.05), 0 12px 32px rgba(28, 25, 23, 0.03);
+  --shadow-hero: 0 2px 4px rgba(28, 25, 23, 0.06), 0 8px 24px rgba(28, 25, 23, 0.06), 0 16px 48px rgba(28, 25, 23, 0.04);
+  --shadow-sticky: 0 -1px 3px rgba(28, 25, 23, 0.04), 0 -4px 16px rgba(28, 25, 23, 0.04);
+  --shadow-button: 0 1px 2px rgba(28, 25, 23, 0.12), 0 1px 3px rgba(28, 25, 23, 0.06);
+  --shadow-button-hover: 0 2px 4px rgba(28, 25, 23, 0.14), 0 4px 8px rgba(28, 25, 23, 0.08);
+  --shadow-inner-subtle: inset 0 1px 2px rgba(28, 25, 23, 0.04);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Offset in-page anchor targets for the sticky header */
+.landing-anchor {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Staggered entrance — set animation-delay inline; opacity:0 holds during delay */
+.landing-reveal {
+  opacity: 0;
+  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .landing-reveal {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--primary-light);
+  color: var(--foreground);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.pb-safe-bottom {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .feedback-bar-safe {
+    position: sticky;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── Premium utility classes ─────────────────────────────── */
+
+.premium-card {
+  background: var(--card);
+  border: 1px solid var(--border-whisper);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.premium-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border);
+}
+
+.hero-card {
+  background: var(--card);
+  border: 1px solid var(--border-whisper);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-hero);
+}
+
+.surface-sunken {
+  background: var(--surface-sunken);
+}
+
+.gradient-text-primary {
+  background: linear-gradient(135deg, var(--primary), #C45A38);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.surface-warm-gradient {
+  background: linear-gradient(180deg, var(--background) 0%, var(--surface-sunken) 100%);
+}
+
+.surface-hero {
+  background: linear-gradient(180deg, #FEF7F0 0%, var(--background) 100%);
+}
+
+.cta-glow {
+  box-shadow: var(--shadow-button), 0 0 0 0 var(--primary-glow);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.cta-glow:hover {
+  box-shadow: var(--shadow-button-hover), 0 0 24px 4px var(--primary-glow);
+}
+
+.cta-glow:active {
+  transform: scale(0.98);
+}
+
+/* Progress bar animation */
+@keyframes progress-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.progress-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: progress-shine 2s ease-in-out infinite;
+}
+
+/* Subtle card inner glow for selected states */
+.card-selected {
+  box-shadow: var(--shadow-card), inset 0 0 0 1.5px var(--primary);
+}
+
+/* Smooth page transitions */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Nav pill active state */
+.nav-active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Quiz option card */
+.quiz-option {
+  background: var(--card);
+  border: 1.5px solid var(--border-whisper);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.quiz-option:hover {
+  border-color: rgba(212, 112, 78, 0.3);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+.quiz-option:active {
+  transform: scale(0.98) translateY(0);
+}
+.quiz-option-selected {
+  background: var(--primary-light);
+  border-color: var(--primary) !important;
+  box-shadow: var(--shadow-card), inset 0 0 0 0.5px var(--primary);
+  transform: scale(1.01);
+}
+
+/* Glass bottom bar */
+.glass-bar {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+
+/* Spinner track */
+@keyframes spinner-dash {
+  0% { stroke-dashoffset: 180; transform: rotate(0deg); }
+  50% { stroke-dashoffset: 45; }
+  100% { stroke-dashoffset: 180; transform: rotate(720deg); }
+}
+.spinner-track {
+  animation: spinner-dash 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Slide-up entrance for quiz screens */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.35s ease-out;
+}
+
+/* Step check-in animation */
+@keyframes check-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-check-pop {
+  animation: check-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Toolkit accordion cards ─────────────────────────────── */
+.toolkit-card {
+  background: var(--card);
+  border: 1px solid var(--border-whisper);
+  border-radius: 1.5rem; /* 24px per spec */
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.toolkit-card[open] {
+  box-shadow: var(--shadow-card-hover);
+}
+.toolkit-card > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.toolkit-card > summary::-webkit-details-marker {
+  display: none;
+}
+.toolkit-chevron {
+  transition: transform 0.2s ease;
+}
+.toolkit-card[open] .toolkit-chevron,
+.toolkit-chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+/* Expanded body reveal */
+@keyframes toolkit-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toolkit-card[open] > .toolkit-body {
+  animation: toolkit-reveal 0.2s ease-out;
+}
+
+/* Rounded 24px card surface for hero/value cards */
+.tk-card {
+  background: var(--card);
+  border: 1px solid var(--border-whisper);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Content-type accent surfaces (soft tints, no heavy color) ─ */
+.tk-accent-play { background: var(--primary-light); color: var(--primary); }
+.tk-accent-skill { background: var(--lavender-light); color: var(--lavender); }
+.tk-accent-sage { background: var(--secondary-light); color: var(--secondary); }
+.tk-accent-yellow { background: var(--accent-light); color: var(--accent-dark); }
+.tk-accent-sos { background: var(--primary-light); color: var(--destructive); }
+.tk-accent-neutral { background: var(--muted); color: var(--muted-foreground); }
+
+/* Soft section tint backgrounds used inside expanded lessons */
+.tk-tint-play { background: color-mix(in srgb, var(--primary-light) 70%, white); }
+.tk-tint-skill { background: color-mix(in srgb, var(--lavender-light) 75%, white); }
+.tk-tint-sage { background: color-mix(in srgb, var(--secondary-light) 70%, white); }
+.tk-tint-yellow { background: color-mix(in srgb, var(--accent-light) 75%, white); }
