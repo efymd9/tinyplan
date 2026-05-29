@@ -24,10 +24,11 @@ export function proxy(request: NextRequest) {
 
   if (hasLocale) {
     const urlLocale = pathname.split("/")[1];
-    const res = NextResponse.next();
-    if (request.cookies.get(COOKIE)?.value !== urlLocale) {
-      res.cookies.set(COOKIE, urlLocale, { path: "/", maxAge: ONE_YEAR });
-    }
+    // Mirror the cookie onto the request so the root layout's <html lang>
+    // is correct on the very first (cold) render of a non-default locale.
+    request.cookies.set(COOKIE, urlLocale);
+    const res = NextResponse.next({ request });
+    res.cookies.set(COOKIE, urlLocale, { path: "/", maxAge: ONE_YEAR });
     return res;
   }
 
