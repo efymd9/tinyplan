@@ -6,11 +6,27 @@ export const en = {
     retry: "Try again",
     cancel: "Cancel",
     save: "Save",
+    saved: "Saved",
     back: "Back",
     next: "Next",
+    previous: "Previous",
     done: "Done",
     skip: "Skip",
+    close: "Close",
+    continue: "Continue",
     logOut: "Log out",
+    search: "Search",
+    getStarted: "Get started",
+    learnMore: "Learn more",
+    yes: "Yes",
+    no: "No",
+    minutes: "minutes",
+    min: "min",
+    day: "Day",
+    week: "Week",
+    of: "of",
+    today: "Today",
+    clearFilters: "Clear filters",
   },
   nav: {
     today: "Today",
@@ -45,6 +61,7 @@ export const en = {
       profile: "Play Profile",
       goal: "This Week's Goal",
       today: "Today",
+      done: "Done",
     },
     sos: {
       title: "SOS",
@@ -67,6 +84,13 @@ export const en = {
       noData: "Complete activities to see your progress.",
     },
   },
+  errors: {
+    generic: "Something went wrong. Please try again.",
+    network: "Connection problem. Check your internet and try again.",
+    notFound: "We couldn't find what you were looking for.",
+    sessionExpired: "Your session has expired. Please log in again.",
+    tryAgain: "Try again",
+  },
   admin: {
     title: "Admin Dashboard",
     funnel: "Conversion Funnel",
@@ -85,4 +109,14 @@ export const en = {
   },
 } as const;
 
-export type Dictionary = typeof en;
+/**
+ * Widen the `as const` literal types of `en` into plain `string`s while keeping
+ * the exact nested key structure. This makes `Dictionary` the single source of
+ * the dictionary shape (derived from `en`) yet lets `es.ts` provide translated
+ * values that still satisfy the type. A missing/extra key remains a compile error.
+ */
+type Widen<T> = T extends string
+  ? string
+  : { [K in keyof T]: Widen<T[K]> };
+
+export type Dictionary = Widen<typeof en>;

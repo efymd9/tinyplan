@@ -1,5 +1,7 @@
 // ── Strong Personalization Layer ────────────────────────────────────────────
 
+import type { Locale } from '@/lib/i18n/config';
+
 // ── "Why this fits" Copy ───────────────────────────────────────────────────
 
 export function generateStrongWhyText(params: {
@@ -262,8 +264,19 @@ const HARD_MOMENT_DISPLAY: Record<string, string> = {
   connection: 'Finding connection time',
 };
 
-export function getHardMomentDisplay(mainPain: string): string {
-  return HARD_MOMENT_DISPLAY[mainPain] ?? mainPain.replace(/_/g, ' ');
+const HARD_MOMENT_DISPLAY_ES: Record<string, string> = {
+  screen_time: 'El fin del tiempo de pantalla',
+  transitions: 'Transiciones difíciles',
+  play_ideas: 'Quedarte sin ideas de juego',
+  boredom: 'Aburrimiento e inquietud',
+  independent_play: 'Lograr que empiece el juego independiente',
+  bedtime: 'Las dificultades a la hora de dormir',
+  connection: 'Encontrar tiempo de conexión',
+};
+
+export function getHardMomentDisplay(mainPain: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? HARD_MOMENT_DISPLAY_ES : HARD_MOMENT_DISPLAY;
+  return map[mainPain] ?? mainPain.replace(/_/g, ' ');
 }
 
 // ── Adaptive Insights ──────────────────────────────────────────────────────

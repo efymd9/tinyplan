@@ -1,5 +1,6 @@
 // ── Deterministic 7-Day Plan Generator ──────────────────────────────────────
 
+import type { Locale } from '@/lib/i18n/config';
 import type { TagProfile } from '@/lib/quiz/tags';
 import { getProfileDisplayName, getGoalDisplayText, getMomentDisplayText, getPlanStyleDisplayText } from '@/lib/quiz/tags';
 import { deriveRoutine } from '@/lib/routines/routines';
@@ -85,6 +86,7 @@ export interface WeeklyPlan {
   days: DayPlan[];
   routine?: RoutineData;
   quizSummary?: QuizSummary;
+  tagProfile: TagProfile;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -168,7 +170,7 @@ function selectFallback(pool: Activity[], exclude: Set<string>): Activity | unde
   return pool.find((a) => !exclude.has(a.id));
 }
 
-function deriveBestFor(activity: Activity): string {
+export function deriveBestFor(activity: Activity, locale: Locale = 'en'): string {
   const moment = parseCsvTags(activity.routine_moment_tags)[0] || '';
   const goal = parseCsvTags(activity.goal_tags)[0] || '';
   const category = (activity.category || '').toLowerCase();
@@ -184,6 +186,25 @@ function deriveBestFor(activity: Activity): string {
     easier_bedtime: 'calm bedtime wind-down',
   };
 
+  const BEST_FOR_ES: Record<string, string> = {
+    connection: 'una conexión tranquila y compartida',
+    independent_play: 'tiempo de juego independiente',
+    fewer_screens: 'disfrutar sin pantallas',
+    calmer_transitions: 'transiciones suaves',
+    speech: 'lenguaje y narración de historias',
+    focus: 'atención concentrada',
+    easier_bedtime: 'una hora de dormir tranquila',
+  };
+
+  if (locale === 'es') {
+    const goalLabel = BEST_FOR_ES[goal] || '';
+    const momentLabel = moment === 'bedtime' ? 'la hora de dormir' : moment === 'evening' ? 'la noche' : '';
+    const energyLabel = energy === 'low' ? 'momentos tranquilos' : energy === 'high' ? 'momentos activos' : '';
+
+    const parts = [energyLabel, momentLabel, goalLabel || category].filter(Boolean);
+    return parts.length > 0 ? parts.join(' · ') : 'tiempo de juego de calidad';
+  }
+
   const goalLabel = BEST_FOR[goal] || '';
   const momentLabel = moment === 'bedtime' ? 'bedtime' : moment === 'evening' ? 'evening' : '';
   const energyLabel = energy === 'low' ? 'calm' : energy === 'high' ? 'active' : '';
@@ -194,7 +215,8 @@ function deriveBestFor(activity: Activity): string {
 
 // ── Quiz Summary Builder ───────────────────────────────────────────────────
 
-function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
+export function buildQuizSummary(tagProfile: TagProfile, locale: Locale = 'en'): QuizSummary {
+  const isEs = locale === 'es';
   const youToldUs: string[] = [];
 
   const MOMENT_TEXT: Record<string, string> = {
@@ -205,8 +227,17 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     bedtime: 'bedtime is your focus time',
     weekend: 'weekends are when you have the most time',
   };
-  if (tagProfile.routine_moment && MOMENT_TEXT[tagProfile.routine_moment]) {
-    youToldUs.push(MOMENT_TEXT[tagProfile.routine_moment]);
+  const MOMENT_TEXT_ES: Record<string, string> = {
+    morning: 'las mañanas funcionan mejor para tu familia',
+    afternoon: 'las tardes son tu momento clave',
+    after_preschool: 'después del preescolar es tu momento clave',
+    evening: 'las noches son el mejor momento para tu familia',
+    bedtime: 'la hora de dormir es tu momento de enfoque',
+    weekend: 'los fines de semana son cuando tienes más tiempo',
+  };
+  const momentText = isEs ? MOMENT_TEXT_ES : MOMENT_TEXT;
+  if (tagProfile.routine_moment && momentText[tagProfile.routine_moment]) {
+    youToldUs.push(momentText[tagProfile.routine_moment]);
   }
 
   const GOAL_TEXT: Record<string, string> = {
@@ -218,8 +249,18 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     focus: 'improving focus and attention is your main goal',
     easier_bedtime: 'an easier bedtime is what you need most',
   };
-  if (tagProfile.primary_goal && GOAL_TEXT[tagProfile.primary_goal]) {
-    youToldUs.push(GOAL_TEXT[tagProfile.primary_goal]);
+  const GOAL_TEXT_ES: Record<string, string> = {
+    connection: 'tu objetivo principal es más conexión',
+    independent_play: 'quieres más juego independiente',
+    fewer_screens: 'quieres menos peleas por las pantallas',
+    calmer_transitions: 'las transiciones más tranquilas son lo que más importa',
+    speech: 'fomentar el lenguaje y la narración de historias es tu prioridad',
+    focus: 'mejorar la concentración y la atención es tu objetivo principal',
+    easier_bedtime: 'una hora de dormir más fácil es lo que más necesitas',
+  };
+  const goalText = isEs ? GOAL_TEXT_ES : GOAL_TEXT;
+  if (tagProfile.primary_goal && goalText[tagProfile.primary_goal]) {
+    youToldUs.push(goalText[tagProfile.primary_goal]);
   }
 
   const STYLE_TEXT: Record<string, string> = {
@@ -229,12 +270,20 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     active: 'you enjoy active, high-energy play',
     calm: 'you prefer calm, low-energy activities',
   };
-  if (tagProfile.plan_style && STYLE_TEXT[tagProfile.plan_style]) {
-    youToldUs.push(STYLE_TEXT[tagProfile.plan_style]);
+  const STYLE_TEXT_ES: Record<string, string> = {
+    quick_easy: 'quieres ideas sencillas sin mucha preparación',
+    structured: 'te gusta el juego estructurado con pasos claros',
+    creative: 'prefieres el juego creativo y abierto',
+    active: 'disfrutas del juego activo y de mucha energía',
+    calm: 'prefieres actividades tranquilas y de baja energía',
+  };
+  const styleText = isEs ? STYLE_TEXT_ES : STYLE_TEXT;
+  if (tagProfile.plan_style && styleText[tagProfile.plan_style]) {
+    youToldUs.push(styleText[tagProfile.plan_style]);
   }
 
   if (tagProfile.is_low_energy) {
-    youToldUs.push('you prefer low-energy activities');
+    youToldUs.push(isEs ? 'prefieres actividades de baja energía' : 'you prefer low-energy activities');
   }
 
   const PAIN_TEXT: Record<string, string> = {
@@ -246,20 +295,30 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     independent_play: 'getting independent play started is hard',
     connection: 'finding connection time feels difficult',
   };
-  if (tagProfile.main_pain && PAIN_TEXT[tagProfile.main_pain]) {
-    youToldUs.push(PAIN_TEXT[tagProfile.main_pain]);
+  const PAIN_TEXT_ES: Record<string, string> = {
+    bedtime: 'la hora de dormir es tu momento más difícil',
+    screen_time: 'el fin del tiempo de pantalla es complicado',
+    transitions: 'las transiciones entre actividades son difíciles',
+    play_ideas: 'te quedas sin ideas de juego durante la semana',
+    boredom: 'el aburrimiento y la inquietud son un desafío',
+    independent_play: 'lograr que empiece el juego independiente es difícil',
+    connection: 'encontrar tiempo de conexión se siente difícil',
+  };
+  const painText = isEs ? PAIN_TEXT_ES : PAIN_TEXT;
+  if (tagProfile.main_pain && painText[tagProfile.main_pain]) {
+    youToldUs.push(painText[tagProfile.main_pain]);
   }
 
   if (tagProfile.is_low_time) {
-    youToldUs.push('you have limited time during the day');
+    youToldUs.push(isEs ? 'tienes poco tiempo durante el día' : 'you have limited time during the day');
   }
 
   if (tagProfile.needs_scripts) {
-    youToldUs.push('you want exact words to use');
+    youToldUs.push(isEs ? 'quieres las palabras exactas que usar' : 'you want exact words to use');
   }
 
   if (tagProfile.needs_screen_help) {
-    youToldUs.push('screen transitions are a challenge');
+    youToldUs.push(isEs ? 'las transiciones de pantalla son un desafío' : 'screen transitions are a challenge');
   }
 
   const soWeCreated: string[] = [];
@@ -272,8 +331,17 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     bedtime: 'calming bedtime rituals',
     weekend: 'weekend family play ideas',
   };
-  if (tagProfile.routine_moment && MOMENT_CREATED[tagProfile.routine_moment]) {
-    soWeCreated.push(MOMENT_CREATED[tagProfile.routine_moment]);
+  const MOMENT_CREATED_ES: Record<string, string> = {
+    morning: 'arranques de mañana llenos de energía',
+    afternoon: 'actividades fáciles para la tarde',
+    after_preschool: 'juego para relajarse después del preescolar',
+    evening: 'actividades acogedoras para la noche',
+    bedtime: 'rituales calmantes para la hora de dormir',
+    weekend: 'ideas de juego en familia para el fin de semana',
+  };
+  const momentCreated = isEs ? MOMENT_CREATED_ES : MOMENT_CREATED;
+  if (tagProfile.routine_moment && momentCreated[tagProfile.routine_moment]) {
+    soWeCreated.push(momentCreated[tagProfile.routine_moment]);
   }
 
   const STYLE_CREATED: Record<string, string> = {
@@ -283,12 +351,20 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     active: 'high-energy movement games',
     calm: 'gentle, calming activities',
   };
-  if (tagProfile.plan_style && STYLE_CREATED[tagProfile.plan_style]) {
-    soWeCreated.push(STYLE_CREATED[tagProfile.plan_style]);
+  const STYLE_CREATED_ES: Record<string, string> = {
+    quick_easy: 'actividades cortas y sin preparación',
+    structured: 'actividades estructuradas paso a paso',
+    creative: 'juego creativo y abierto',
+    active: 'juegos de movimiento de mucha energía',
+    calm: 'actividades suaves y calmantes',
+  };
+  const styleCreated = isEs ? STYLE_CREATED_ES : STYLE_CREATED;
+  if (tagProfile.plan_style && styleCreated[tagProfile.plan_style]) {
+    soWeCreated.push(styleCreated[tagProfile.plan_style]);
   }
 
   if (tagProfile.is_low_energy) {
-    soWeCreated.push('low-prep bonding moments');
+    soWeCreated.push(isEs ? 'momentos de conexión con poca preparación' : 'low-prep bonding moments');
   }
 
   const PAIN_CREATED: Record<string, string> = {
@@ -300,11 +376,21 @@ function buildQuizSummary(tagProfile: TagProfile): QuizSummary {
     independent_play: 'independent play starters',
     connection: 'connection-building moments',
   };
-  if (tagProfile.main_pain && PAIN_CREATED[tagProfile.main_pain]) {
-    soWeCreated.push(PAIN_CREATED[tagProfile.main_pain]);
+  const PAIN_CREATED_ES: Record<string, string> = {
+    bedtime: 'ayuda SOS para las dificultades a la hora de dormir',
+    screen_time: 'transiciones de la pantalla a la calma',
+    transitions: 'estrategias para transiciones más suaves',
+    play_ideas: 'ideas frescas de juego para cada día',
+    boredom: 'actividades para combatir el aburrimiento',
+    independent_play: 'arranques de juego independiente',
+    connection: 'momentos para fortalecer la conexión',
+  };
+  const painCreated = isEs ? PAIN_CREATED_ES : PAIN_CREATED;
+  if (tagProfile.main_pain && painCreated[tagProfile.main_pain]) {
+    soWeCreated.push(painCreated[tagProfile.main_pain]);
   }
 
-  soWeCreated.push('ready-to-use parent scripts');
+  soWeCreated.push(isEs ? 'qué decir, listo para usar' : 'ready-to-use parent scripts');
 
   return {
     youToldUs: youToldUs.slice(0, 4),
@@ -452,5 +538,6 @@ export function generateWeeklyPlan(
       script: routine.script,
     } : undefined,
     quizSummary,
+    tagProfile,
   };
 }

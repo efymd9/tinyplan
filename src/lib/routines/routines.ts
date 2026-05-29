@@ -1,5 +1,7 @@
 // ── Personalized Routine Layer ──────────────────────────────────────────────
 
+import type { Locale } from '@/lib/i18n/config';
+
 export interface Routine {
   id: string;
   type: string;
@@ -165,4 +167,88 @@ export function deriveRoutine(tags: {
 
   // Default
   return bedtimeSoftLanding;
+}
+
+// ── Localization (Spanish text by routine id) ────────────────────────────────
+
+const ROUTINE_TEXT_ES: Record<
+  string,
+  { title: string; whenToUse: string; steps: string[]; script: string }
+> = {
+  'screen-to-calm': {
+    title: 'Rutina de Pantalla a la Calma para la Noche',
+    whenToUse: 'Usa esto cada vez que termine el tiempo de pantalla esta semana.',
+    steps: [
+      '1. Nombra el final: "Las pantallas ya están descansando".',
+      '2. Pongan el dispositivo a dormir juntos.',
+      '3. Empieza una pequeña acción sin pantalla.',
+      '4. Pasen a la actividad de baja energía de hoy.',
+    ],
+    script:
+      'La pantalla se va a dormir ahora. Vamos a acostarla juntos. Y ahora, ¿qué hacemos con nuestras manos?',
+  },
+  'after-preschool-reset': {
+    title: 'Reinicio Después del Preescolar',
+    whenToUse:
+      'Usa esto cuando tu peque llegue a casa del preescolar o la guardería.',
+    steps: [
+      '1. Primero merienda y agua, nada de preguntas todavía.',
+      '2. Reinicio rápido del cuerpo: 3 saltos grandes o sacúdanse.',
+      '3. Ofrece una pequeña elección: "¿Dibujar o jugar?".',
+      '4. Empiecen juntos una actividad sencilla.',
+    ],
+    script:
+      '¡Ya estás en casa! Aquí está tu merienda. Cuando estés listo(a), buscamos algo divertido que hacer. Sin prisa.',
+  },
+  'bedtime-soft-landing': {
+    title: 'Aterrizaje Suave para Dormir',
+    whenToUse: 'Usa esto cuando las noches se sientan caóticas.',
+    steps: [
+      '1. Baja las luces y baja la voz.',
+      '2. Ofrece una pequeña elección acogedora.',
+      '3. Empiecen la actividad tranquila de esta noche.',
+      '4. Termina con una frase de cierre: "Todo está hecho por hoy".',
+    ],
+    script:
+      'El día está terminando. Vamos a ponernos cómodos. ¿Qué cuento elegimos esta noche?',
+  },
+  'big-feelings-reset': {
+    title: 'Reinicio de Grandes Emociones',
+    whenToUse: 'Usa esto cuando las emociones están a flor de piel.',
+    steps: [
+      '1. Nombra la emoción con palabras sencillas.',
+      '2. Reduce tu lenguaje: menos palabras, voz más suave.',
+      '3. Ofrece un reinicio del cuerpo: un apretón, saltar o respirar profundo.',
+      '4. Ofrece una pequeña elección para seguir adelante.',
+    ],
+    script:
+      'Estás sintiendo una emoción muy grande ahora mismo. Aquí estoy. Vamos a respirar juntos.',
+  },
+  'independent-play-starter': {
+    title: 'Arranque de Juego Independiente',
+    whenToUse:
+      'Usa esto cuando necesitas que tu peque juegue solo(a) un rato.',
+    steps: [
+      '1. Prepara el escenario: pon 2 o 3 objetos al alcance.',
+      '2. Empiecen a jugar juntos durante 2 minutos.',
+      '3. Da un paso atrás: "Voy a estar aquí cerca. Tú sigue".',
+      '4. Vuelve con un pequeño comentario después de 5 minutos.',
+    ],
+    script:
+      'Voy a preparar algo divertido y empezamos juntos. Después tú sigues; voy a estar aquí cerca si me necesitas.',
+  },
+};
+
+export function localizeRoutine<
+  T extends {
+    id: string;
+    title: string;
+    whenToUse: string;
+    steps: string[];
+    script: string;
+  },
+>(routine: T, locale: Locale): T {
+  if (locale === 'en') return routine;
+  const tx = ROUTINE_TEXT_ES[routine.id];
+  return tx ? { ...routine, ...tx } : routine;
 }

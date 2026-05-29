@@ -1,5 +1,7 @@
 // ── Tag Profile Builder (v4) ────────────────────────────────────────────────
 
+import type { Locale } from '@/lib/i18n/config';
+
 export type PlayProfile =
   | 'big-feelings-explorer'
   | 'curious-builder'
@@ -128,8 +130,18 @@ const PROFILE_DISPLAY_NAMES: Record<PlayProfile, string> = {
   'connection-seeker': 'Connection Seeker',
 };
 
-export function getProfileDisplayName(profile: PlayProfile): string {
-  return PROFILE_DISPLAY_NAMES[profile] ?? profile;
+const PROFILE_DISPLAY_NAMES_ES: Record<PlayProfile, string> = {
+  'big-feelings-explorer': 'Explorador de Grandes Emociones',
+  'curious-builder': 'Constructor Curioso',
+  'story-seeker': 'Buscador de Historias',
+  'routine-lover': 'Amante de las Rutinas',
+  'fast-bored-sprinter': 'Explorador de Ritmo Rápido',
+  'connection-seeker': 'Buscador de Conexión',
+};
+
+export function getProfileDisplayName(profile: PlayProfile, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? PROFILE_DISPLAY_NAMES_ES : PROFILE_DISPLAY_NAMES;
+  return map[profile] ?? profile;
 }
 
 const GOAL_DISPLAY_TEXT: Record<string, string> = {
@@ -142,8 +154,19 @@ const GOAL_DISPLAY_TEXT: Record<string, string> = {
   connection: 'More quality connection time',
 };
 
-export function getGoalDisplayText(goal: string): string {
-  return GOAL_DISPLAY_TEXT[goal] ?? goal;
+const GOAL_DISPLAY_TEXT_ES: Record<string, string> = {
+  independent_play: 'Ayudar a tu peque a jugar de forma independiente',
+  fewer_screens: 'Menos peleas por las pantallas',
+  calmer_transitions: 'Transiciones más tranquilas durante el día',
+  speech: 'Más lenguaje y narración de historias',
+  focus: 'Mejor concentración y atención',
+  easier_bedtime: 'Una rutina de dormir más fácil',
+  connection: 'Más tiempo de conexión de calidad',
+};
+
+export function getGoalDisplayText(goal: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? GOAL_DISPLAY_TEXT_ES : GOAL_DISPLAY_TEXT;
+  return map[goal] ?? goal;
 }
 
 const MOMENT_DISPLAY: Record<string, string> = {
@@ -155,8 +178,18 @@ const MOMENT_DISPLAY: Record<string, string> = {
   hard_moments: 'hard moments',
 };
 
-export function getMomentDisplayText(moment: string): string {
-  return MOMENT_DISPLAY[moment] ?? moment;
+const MOMENT_DISPLAY_ES: Record<string, string> = {
+  morning: 'la mañana',
+  after_preschool: 'después del preescolar',
+  before_dinner: 'antes de la cena',
+  bedtime: 'la hora de dormir',
+  weekends: 'los fines de semana',
+  hard_moments: 'los momentos difíciles',
+};
+
+export function getMomentDisplayText(moment: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? MOMENT_DISPLAY_ES : MOMENT_DISPLAY;
+  return map[moment] ?? moment;
 }
 
 const PLAN_STYLE_DISPLAY: Record<string, string> = {
@@ -170,8 +203,20 @@ const PLAN_STYLE_DISPLAY: Record<string, string> = {
   weekend_focused: 'weekend-focused plan',
 };
 
-export function getPlanStyleDisplayText(style: string): string {
-  return PLAN_STYLE_DISPLAY[style] ?? style.replace(/_/g, ' ');
+const PLAN_STYLE_DISPLAY_ES: Record<string, string> = {
+  one_per_day: 'una actividad por día',
+  one_activity: 'una actividad por día',
+  morning_evening: 'rutina de mañana + noche',
+  few_options: 'opciones diarias flexibles',
+  flexible_options: 'opciones diarias flexibles',
+  difficult_moments: 'ayuda para los momentos difíciles',
+  sos_only: 'ayuda para los momentos difíciles',
+  weekend_focused: 'plan enfocado en el fin de semana',
+};
+
+export function getPlanStyleDisplayText(style: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? PLAN_STYLE_DISPLAY_ES : PLAN_STYLE_DISPLAY;
+  return map[style] ?? style.replace(/_/g, ' ');
 }
 
 const SUPPORT_DISPLAY: Record<string, string> = {
@@ -182,8 +227,17 @@ const SUPPORT_DISPLAY: Record<string, string> = {
   backup_if_refuses: 'backup ideas if refused',
 };
 
-export function getSupportDisplayText(support: string): string {
-  return SUPPORT_DISPLAY[support] ?? support.replace(/_/g, ' ');
+const SUPPORT_DISPLAY_ES: Record<string, string> = {
+  step_by_step: 'instrucciones paso a paso',
+  exact_words: 'las palabras exactas que decir',
+  shorter_version: 'versiones más cortas para los días ocupados',
+  easier_version: 'alternativas más fáciles',
+  backup_if_refuses: 'ideas de respaldo si se niega',
+};
+
+export function getSupportDisplayText(support: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? SUPPORT_DISPLAY_ES : SUPPORT_DISPLAY;
+  return map[support] ?? support.replace(/_/g, ' ');
 }
 
 const AVOID_DISPLAY: Record<string, string> = {
@@ -195,8 +249,18 @@ const AVOID_DISPLAY: Record<string, string> = {
   homework_feel: 'homework-like activities',
 };
 
-export function getAvoidDisplayText(avoid: string): string {
-  return AVOID_DISPLAY[avoid] ?? avoid.replace(/_/g, ' ');
+const AVOID_DISPLAY_ES: Record<string, string> = {
+  messy: 'actividades que ensucian',
+  many_materials: 'muchos materiales',
+  long_instructions: 'instrucciones largas',
+  loud_play: 'juego ruidoso o de mucha energía',
+  screen_based: 'ideas con pantallas',
+  homework_feel: 'actividades que parecen tarea',
+};
+
+export function getAvoidDisplayText(avoid: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? AVOID_DISPLAY_ES : AVOID_DISPLAY;
+  return map[avoid] ?? avoid.replace(/_/g, ' ');
 }
 
 const MAIN_PAIN_DISPLAY: Record<string, string> = {
@@ -209,8 +273,19 @@ const MAIN_PAIN_DISPLAY: Record<string, string> = {
   connection: 'more meaningful connection',
 };
 
-export function getMainPainDisplayText(pain: string): string {
-  return MAIN_PAIN_DISPLAY[pain] ?? pain.replace(/_/g, ' ');
+const MAIN_PAIN_DISPLAY_ES: Record<string, string> = {
+  screen_time: 'menos peleas por las pantallas',
+  transitions: 'transiciones más tranquilas',
+  no_ideas: 'ideas frescas de juego',
+  boredom: 'mantener a tu peque entretenido',
+  independent_play: 'fomentar el juego independiente',
+  bedtime: 'una hora de dormir más fácil',
+  connection: 'una conexión más significativa',
+};
+
+export function getMainPainDisplayText(pain: string, locale: Locale = 'en'): string {
+  const map = locale === 'es' ? MAIN_PAIN_DISPLAY_ES : MAIN_PAIN_DISPLAY;
+  return map[pain] ?? pain.replace(/_/g, ' ');
 }
 
 // ── Main builder ────────────────────────────────────────────────────────────
