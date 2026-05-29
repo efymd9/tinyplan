@@ -1,7 +1,10 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { PageViewTracker } from "@/components/analytics/page-view-tracker";
+import { resolveLocale } from "@/lib/i18n/config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -9,25 +12,18 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "TinyPlan — A simple weekly plan for calmer, more meaningful days",
+  title: "TinyPlan",
   description:
-    "Personalized 7-day play & routine plans for parents of children aged 2–6. Screen-free activities, parent scripts, and calm routines built around your family.",
-  keywords: [
-    "parenting",
-    "play plan",
-    "screen-free activities",
-    "toddler activities",
-    "preschool routine",
-  ],
+    "Planes de juego y rutina personalizados para madres y padres de niños de 2 a 6 años.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
+  const store = await cookies();
+  const locale = resolveLocale(store.get("tinyplan_locale")?.value);
   return (
-    <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
+    <html lang={locale} className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <PageViewTracker />
         {children}
