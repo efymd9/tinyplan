@@ -6,6 +6,7 @@ import type { DayPlan, WeeklyPlan, RoutineData, QuizSummary } from "@/lib/engine
 import type { TagProfile } from "@/lib/quiz/tags";
 
 export type { DayPlan, WeeklyPlan, RoutineData, QuizSummary };
+export { localizePlan } from "@/lib/engine/localize-plan";
 
 export function getActivePlan(userId: string) {
   const db = getDb();

@@ -14,26 +14,153 @@ import {
   getMainPainDisplayText,
   getSupportDisplayText,
 } from "@/lib/quiz/tags";
-import { deriveRoutine } from "@/lib/routines/routines";
+import { deriveRoutine, localizeRoutine } from "@/lib/routines/routines";
 import { getHardMomentDisplay } from "@/lib/personalization/personalize";
 import { ProfileIllustration, SpotIcon } from "@/components/illustrations/activity-illustrations";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 
-const TIME_DISPLAY: Record<string, string> = {
-  "3_5": "3–5 minutes",
-  "7_10": "7–10 minutes",
-  "10_15": "10–15 minutes",
-  "15_plus": "15+ minutes",
-  depends: "Flexible",
+const TIME_DISPLAY: Record<Locale, Record<string, string>> = {
+  en: {
+    "3_5": "3–5 minutes",
+    "7_10": "7–10 minutes",
+    "10_15": "10–15 minutes",
+    "15_plus": "15+ minutes",
+    depends: "Flexible",
+  },
+  es: {
+    "3_5": "3–5 minutos",
+    "7_10": "7–10 minutos",
+    "10_15": "10–15 minutos",
+    "15_plus": "15+ minutos",
+    depends: "Flexible",
+  },
 };
+
+const COPY = {
+  en: {
+    noResultTitle: "Your results aren't here yet",
+    noResultBody: "Take the 3-minute quiz to get your personalized plan.",
+    noResultCta: "Start the quiz",
+    homeAria: "TinyPlan home",
+    planReadyBadge: "Plan ready",
+    heroAlt: "Your personalised play plan is ready to unlock",
+    yourPlayProfile: "Your play profile",
+    heroBody:
+      "We built a 7-day parent toolkit from your answers — unlock it to see everything we prepared for you.",
+    builtFromYourAnswers: "Built from your answers",
+    mainChallenge: "Main challenge",
+    childStyle: "Your child's style",
+    bestMomentTime: "Best moment & time",
+    supportYouNeed: "Support you need",
+    planStyle: "Plan style",
+    checklistAlt:
+      "Your personalised weekly checklist with daily activities and parent scripts",
+    whatWeBuilt: "What we built from your answers",
+    yourPersonalisedRoutine: "Your personalised routine",
+    thisWeeksFocus: "This week's focus",
+    planPreview: {
+      days12: "Day 1–2",
+      days34: "Day 3–4",
+      days56: "Day 5–6",
+      day7: "Day 7",
+      styleSuffix: (name: string) => `${name}-style play`,
+      variety: "Variety & exploration",
+      calm: "Calm connection routine",
+    },
+    valueStack: [
+      "7 daily toolkits — one play moment + one parent skill every day",
+      "Parent skill lessons with exact words to say when they refuse, melt down, or lose interest",
+      "SOS coach — 8 ready-to-use reset scripts for screen time, bedtime, and meltdowns",
+      "Daily routines with step-by-step guidance matched to your schedule",
+      "Adaptive insights — your plan evolves with your feedback each week",
+    ],
+    lockedTitle: "Your 7-day parent toolkit",
+    lockedDay1: "Day 1",
+    lockedDay1Desc: "Toolkit · Play moment · Parent skill · Script",
+    lockedDay2: "Day 2",
+    lockedDay2Desc: "Toolkit · Routine guide · Refusal script",
+    lockedDay37: "Day 3–7",
+    lockedDay37Desc: "+ SOS coach · Adaptive insights · Progress check-ins",
+    unlockToolkit: "Unlock your toolkit",
+    unlockToolkitSub: "7-day personalised parent plan",
+    noCheckoutUrl: "No checkout URL returned. Please try again.",
+    genericError: "Something went wrong. Please try again.",
+    mainCta: "Start my 7-day plan — $1",
+    pricingNote: "Then $14.99/month. Cancel anytime. No commitment.",
+    sosHelpFor: (moment: string) => `Includes SOS help for: ${moment}`,
+    stickyTitle: "Your plan is ready",
+    stickySub: "Then $14.99/mo. Cancel anytime.",
+    stickyCta: "Start for $1",
+    loading: "Loading results...",
+  },
+  es: {
+    noResultTitle: "Tus resultados aún no están aquí",
+    noResultBody: "Haz el test de 3 minutos para obtener tu plan personalizado.",
+    noResultCta: "Empezar el test",
+    homeAria: "Inicio de TinyPlan",
+    planReadyBadge: "Plan listo",
+    heroAlt: "Tu plan de juego personalizado está listo para desbloquear",
+    yourPlayProfile: "Tu perfil de juego",
+    heroBody:
+      "Creamos un kit de herramientas para padres de 7 días a partir de tus respuestas — desbloquéalo para ver todo lo que preparamos para ti.",
+    builtFromYourAnswers: "Creado a partir de tus respuestas",
+    mainChallenge: "Reto principal",
+    childStyle: "El estilo de tu peque",
+    bestMomentTime: "Mejor momento y tiempo",
+    supportYouNeed: "El apoyo que necesitas",
+    planStyle: "Estilo del plan",
+    checklistAlt:
+      "Tu lista semanal personalizada con actividades diarias y qué decir",
+    whatWeBuilt: "Lo que creamos a partir de tus respuestas",
+    yourPersonalisedRoutine: "Tu rutina personalizada",
+    thisWeeksFocus: "El enfoque de esta semana",
+    planPreview: {
+      days12: "Día 1–2",
+      days34: "Día 3–4",
+      days56: "Día 5–6",
+      day7: "Día 7",
+      styleSuffix: (name: string) => `Juego estilo ${name}`,
+      variety: "Variedad y exploración",
+      calm: "Rutina de conexión tranquila",
+    },
+    valueStack: [
+      "7 kits de herramientas diarios — un momento de juego + una habilidad para padres cada día",
+      "Lecciones de habilidades para padres con las palabras exactas que decir cuando se niega, hace berrinche o pierde el interés",
+      "Asistente SOS — 8 guiones de reinicio listos para usar en tiempo de pantalla, hora de dormir y berrinches",
+      "Rutinas diarias con guía paso a paso ajustadas a tu horario",
+      "Ideas que se adaptan — tu plan evoluciona con tus comentarios cada semana",
+    ],
+    lockedTitle: "Tu kit de herramientas para padres de 7 días",
+    lockedDay1: "Día 1",
+    lockedDay1Desc: "Kit · Momento de juego · Habilidad para padres · Qué decir",
+    lockedDay2: "Día 2",
+    lockedDay2Desc: "Kit · Guía de rutina · Qué decir si se niega",
+    lockedDay37: "Día 3–7",
+    lockedDay37Desc: "+ Asistente SOS · Ideas que se adaptan · Revisiones de progreso",
+    unlockToolkit: "Desbloquea tu kit de herramientas",
+    unlockToolkitSub: "Plan personalizado para padres de 7 días",
+    noCheckoutUrl:
+      "No se recibió la URL de pago. Inténtalo de nuevo, por favor.",
+    genericError: "Algo salió mal. Inténtalo de nuevo, por favor.",
+    mainCta: "Empezar mi plan de 7 días — $1",
+    pricingNote: "Luego $14.99/mes. Cancela cuando quieras. Sin compromiso.",
+    sosHelpFor: (moment: string) => `Incluye ayuda SOS para: ${moment}`,
+    stickyTitle: "Tu plan está listo",
+    stickySub: "Luego $14.99/mes. Cancela cuando quieras.",
+    stickyCta: "Empezar por $1",
+    loading: "Cargando resultados...",
+  },
+} as const;
 
 function ResultContent() {
   const { track } = useAnalytics();
   const locale = useLocale();
+  const copy = COPY[locale];
   const [loading, setLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -66,12 +193,10 @@ function ResultContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="bg-card border border-border-whisper rounded-2xl p-8 text-center max-w-md shadow-card">
-          <h2 className="text-xl font-bold mb-2">Your results aren&apos;t here yet</h2>
-          <p className="text-muted-foreground mb-4">
-            Take the 3-minute quiz to get your personalized plan.
-          </p>
+          <h2 className="text-xl font-bold mb-2">{copy.noResultTitle}</h2>
+          <p className="text-muted-foreground mb-4">{copy.noResultBody}</p>
           <Link href={localizeHref("/quiz", locale)}>
-            <Button>Start the quiz</Button>
+            <Button>{copy.noResultCta}</Button>
           </Link>
         </div>
       </div>
@@ -80,41 +205,45 @@ function ResultContent() {
 
   const { tagProfile, email, answers } = data;
   const profile = tagProfile.play_profile;
-  const profileName = getProfileDisplayName(profile);
-  const goalText = getGoalDisplayText(tagProfile.primary_goal);
-  const momentText = getMomentDisplayText(tagProfile.routine_moment);
-  const planStyleText = getPlanStyleDisplayText(tagProfile.plan_style);
+  const profileName = getProfileDisplayName(profile, locale);
+  const goalText = getGoalDisplayText(tagProfile.primary_goal, locale);
+  const momentText = getMomentDisplayText(tagProfile.routine_moment, locale);
+  const planStyleText = getPlanStyleDisplayText(tagProfile.plan_style, locale);
   const hardMomentText = tagProfile.main_pain
-    ? getHardMomentDisplay(tagProfile.main_pain)
+    ? getHardMomentDisplay(tagProfile.main_pain, locale)
     : null;
   const mainPainText = tagProfile.main_pain
-    ? getMainPainDisplayText(tagProfile.main_pain)
+    ? getMainPainDisplayText(tagProfile.main_pain, locale)
     : null;
   const supportTexts = tagProfile.support_needed_all
-    .map((s: string) => getSupportDisplayText(s))
+    .map((s: string) => getSupportDisplayText(s, locale))
     .filter(Boolean);
-  const timeText = TIME_DISPLAY[tagProfile.parent_time] || tagProfile.parent_time;
+  const timeText =
+    TIME_DISPLAY[locale][tagProfile.parent_time] || tagProfile.parent_time;
 
-  const routine = deriveRoutine({
-    main_pain: tagProfile.main_pain,
-    primary_goal: tagProfile.primary_goal,
-    routine_moment: tagProfile.routine_moment,
-    needs_screen_help: tagProfile.needs_screen_help,
-  });
+  const routine = localizeRoutine(
+    deriveRoutine({
+      main_pain: tagProfile.main_pain,
+      primary_goal: tagProfile.primary_goal,
+      routine_moment: tagProfile.routine_moment,
+      needs_screen_help: tagProfile.needs_screen_help,
+    }),
+    locale,
+  );
 
   const planPreview = [
-    { days: "Day 1–2", focus: goalText },
-    { days: "Day 3–4", focus: `${profileName}-style play` },
-    { days: "Day 5–6", focus: "Variety & exploration" },
-    { days: "Day 7", focus: "Calm connection routine" },
+    { days: copy.planPreview.days12, focus: goalText },
+    { days: copy.planPreview.days34, focus: copy.planPreview.styleSuffix(profileName) },
+    { days: copy.planPreview.days56, focus: copy.planPreview.variety },
+    { days: copy.planPreview.day7, focus: copy.planPreview.calm },
   ];
 
   const valueStack = [
-    { icon: "activity", text: "7 daily toolkits — one play moment + one parent skill every day" },
-    { icon: "chat", text: "Parent skill lessons with exact words to say when they refuse, melt down, or lose interest" },
-    { icon: "sos", text: "SOS coach — 8 ready-to-use reset scripts for screen time, bedtime, and meltdowns" },
-    { icon: "routine", text: "Daily routines with step-by-step guidance matched to your schedule" },
-    { icon: "insight", text: "Adaptive insights — your plan evolves with your feedback each week" },
+    { icon: "activity", text: copy.valueStack[0] },
+    { icon: "chat", text: copy.valueStack[1] },
+    { icon: "sos", text: copy.valueStack[2] },
+    { icon: "routine", text: copy.valueStack[3] },
+    { icon: "insight", text: copy.valueStack[4] },
   ];
 
   const handleCheckout = async () => {
@@ -140,11 +269,11 @@ function ResultContent() {
       if (result.url) {
         window.location.href = result.url;
       } else {
-        setCheckoutError("No checkout URL returned. Please try again.");
+        setCheckoutError(copy.noCheckoutUrl);
         setLoading(false);
       }
     } catch {
-      setCheckoutError("Something went wrong. Please try again.");
+      setCheckoutError(copy.genericError);
       setLoading(false);
     }
   };
@@ -153,11 +282,11 @@ function ResultContent() {
     <div className="min-h-screen surface-warm-gradient pb-28">
       <header className="sticky top-0 z-40 glass-bar border-b border-border-whisper px-4 py-3 shadow-xs">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Link href={localizeHref("/", locale)} aria-label="TinyPlan home">
+          <Link href={localizeHref("/", locale)} aria-label={copy.homeAria}>
             <BrandLogo width={130} priority />
           </Link>
           <span className="text-xs font-medium text-secondary bg-secondary-light px-3 py-1 rounded-full">
-            Plan ready
+            {copy.planReadyBadge}
           </span>
         </div>
       </header>
@@ -167,7 +296,7 @@ function ResultContent() {
         <div className="mb-6 animate-fade-up">
           <Image
             src="/images/illustrations/tinyplan-plan-ready.png"
-            alt="Your personalised play plan is ready to unlock"
+            alt={copy.heroAlt}
             width={1448}
             height={1086}
             className="w-full max-w-sm mx-auto h-auto rounded-2xl"
@@ -183,21 +312,20 @@ function ResultContent() {
             </div>
           </div>
           <p className="text-xs font-semibold text-primary uppercase tracking-[0.15em] mb-2.5">
-            Your play profile
+            {copy.yourPlayProfile}
           </p>
           <h1 className="text-3xl font-bold mb-3">
             <span className="gradient-text-primary">{profileName}</span>
           </h1>
           <p className="text-muted-foreground leading-relaxed max-w-sm mx-auto">
-            We built a 7-day parent toolkit from your answers &mdash; unlock it
-            to see everything we prepared for you.
+            {copy.heroBody}
           </p>
         </div>
 
         {/* Personalization receipt */}
         <div className="hero-card p-5 mb-5 shadow-hero rounded-[1.25rem]">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-            Built from your answers
+            {copy.builtFromYourAnswers}
           </p>
           <div className="space-y-3.5">
             {mainPainText && (
@@ -208,7 +336,7 @@ function ResultContent() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium">Main challenge</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{copy.mainChallenge}</p>
                   <p className="font-semibold capitalize text-[15px]">{mainPainText}</p>
                 </div>
               </div>
@@ -220,7 +348,7 @@ function ResultContent() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Your child&apos;s style</p>
+                <p className="text-[11px] text-muted-foreground font-medium">{copy.childStyle}</p>
                 <p className="font-semibold text-[15px]">{profileName}</p>
               </div>
             </div>
@@ -231,7 +359,7 @@ function ResultContent() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Best moment &amp; time</p>
+                <p className="text-[11px] text-muted-foreground font-medium">{copy.bestMomentTime}</p>
                 <p className="font-semibold capitalize text-[15px]">{momentText} &middot; {timeText}</p>
               </div>
             </div>
@@ -243,7 +371,7 @@ function ResultContent() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium">Support you need</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{copy.supportYouNeed}</p>
                   <p className="font-semibold capitalize text-[15px]">{supportTexts.join(", ")}</p>
                 </div>
               </div>
@@ -255,7 +383,7 @@ function ResultContent() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Plan style</p>
+                <p className="text-[11px] text-muted-foreground font-medium">{copy.planStyle}</p>
                 <p className="font-semibold capitalize text-[15px]">{planStyleText}</p>
               </div>
             </div>
@@ -267,15 +395,13 @@ function ResultContent() {
           <div className="mb-4">
             <Image
               src="/images/illustrations/tinyplan-checklist-result.png"
-              alt="Your personalised weekly checklist with daily activities and parent scripts"
+              alt={copy.checklistAlt}
               width={1448}
               height={1086}
               className="w-full max-w-xs mx-auto h-auto rounded-xl"
             />
           </div>
-          <h2 className="text-sm font-bold mb-4">
-            What we built from your answers
-          </h2>
+          <h2 className="text-sm font-bold mb-4">{copy.whatWeBuilt}</h2>
           <div className="space-y-3.5">
             {valueStack.map((item) => (
               <div key={item.text} className="flex items-start gap-3">
@@ -292,7 +418,7 @@ function ResultContent() {
             <SpotIcon type="routine" className="w-8 h-8" />
             <div>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Your personalised routine
+                {copy.yourPersonalisedRoutine}
               </p>
               <p className="text-sm font-semibold">{routine.title}</p>
             </div>
@@ -314,7 +440,7 @@ function ResultContent() {
         <div className="bg-card border border-border-whisper rounded-2xl p-5 mb-5 shadow-card">
           <div className="flex items-center gap-2.5 mb-4">
             <SpotIcon type="week" className="w-8 h-8" />
-            <h2 className="text-sm font-bold">This week&apos;s focus</h2>
+            <h2 className="text-sm font-bold">{copy.thisWeeksFocus}</h2>
           </div>
           <div className="space-y-2.5">
             {planPreview.map((item) => (
@@ -329,19 +455,19 @@ function ResultContent() {
         {/* Locked full plan */}
         <div className="relative mb-8 rounded-2xl overflow-hidden">
           <div className="opacity-40 blur-[4px] select-none pointer-events-none bg-card border border-border-whisper rounded-2xl p-5 space-y-3">
-            <p className="font-semibold text-sm">Your 7-day parent toolkit</p>
+            <p className="font-semibold text-sm">{copy.lockedTitle}</p>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground w-14">Day 1</span>
-                <span>Toolkit · Play moment · Parent skill · Script</span>
+                <span className="font-semibold text-foreground w-14">{copy.lockedDay1}</span>
+                <span>{copy.lockedDay1Desc}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground w-14">Day 2</span>
-                <span>Toolkit · Routine guide · Refusal script</span>
+                <span className="font-semibold text-foreground w-14">{copy.lockedDay2}</span>
+                <span>{copy.lockedDay2Desc}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground w-14">Day 3–7</span>
-                <span>+ SOS coach · Adaptive insights · Progress check-ins</span>
+                <span className="font-semibold text-foreground w-14">{copy.lockedDay37}</span>
+                <span>{copy.lockedDay37Desc}</span>
               </div>
             </div>
           </div>
@@ -354,8 +480,8 @@ function ResultContent() {
                 </svg>
               </div>
               <div>
-                <span className="text-sm font-bold block">Unlock your toolkit</span>
-                <span className="text-[11px] text-muted-foreground">7-day personalised parent plan</span>
+                <span className="text-sm font-bold block">{copy.unlockToolkit}</span>
+                <span className="text-[11px] text-muted-foreground">{copy.unlockToolkitSub}</span>
               </div>
             </div>
           </div>
@@ -373,17 +499,17 @@ function ResultContent() {
             onClick={handleCheckout}
             loading={loading}
           >
-            Start my 7-day plan &mdash; $1
+            {copy.mainCta}
           </Button>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-3.5 mb-6">
-          Then $14.99/month. Cancel anytime. No commitment.
+          {copy.pricingNote}
         </p>
 
         {hardMomentText && (
           <p className="text-center text-xs text-muted-foreground">
-            Includes SOS help for: {hardMomentText}
+            {copy.sosHelpFor(hardMomentText)}
           </p>
         )}
       </main>
@@ -392,15 +518,15 @@ function ResultContent() {
       <div className="fixed bottom-0 left-0 right-0 z-50 glass-bar border-t border-border-whisper px-4 py-3 shadow-sticky">
         <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-bold truncate">Your plan is ready</p>
-            <p className="text-xs text-muted-foreground">Then $14.99/mo. Cancel anytime.</p>
+            <p className="text-sm font-bold truncate">{copy.stickyTitle}</p>
+            <p className="text-xs text-muted-foreground">{copy.stickySub}</p>
           </div>
           <Button
             onClick={handleCheckout}
             loading={loading}
             className="shrink-0 px-6"
           >
-            Start for $1
+            {copy.stickyCta}
           </Button>
         </div>
       </div>
@@ -409,11 +535,12 @@ function ResultContent() {
 }
 
 export default function ResultPage() {
+  const locale = useLocale();
   return (
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading results...</div>
+          <div className="animate-pulse text-muted-foreground">{COPY[locale].loading}</div>
         </div>
       }
     >

@@ -8,10 +8,12 @@ import { BrandLogo } from "@/components/brand-logo";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getVisibleScreens, type QuizScreen } from "@/lib/quiz/questions";
+import { getVisibleScreensForLocale, type QuizScreen } from "@/lib/quiz/questions";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
-import { useLocale } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
+import { getShellCopy, type ShellCopy } from "./quiz-shell-content";
+import type { Dictionary } from "@/lib/i18n/en";
 
 const STORAGE_KEY = "tinyplan_quiz";
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
@@ -50,6 +52,8 @@ function saveState(state: QuizState) {
 export function QuizShell() {
   const router = useRouter();
   const locale = useLocale();
+  const t = useT();
+  const copy = getShellCopy(locale);
   const { track } = useAnalytics();
   const [state, setState] = useState<QuizState>(loadState);
   const [loadingStep, setLoadingStep] = useState(0);
@@ -63,8 +67,8 @@ export function QuizShell() {
   }, [track]);
 
   const visibleScreens = useMemo(
-    () => getVisibleScreens(state.answers),
-    [state.answers]
+    () => getVisibleScreensForLocale(state.answers, locale),
+    [state.answers, locale]
   );
 
   const screen = visibleScreens[state.step] as QuizScreen | undefined;
@@ -121,7 +125,7 @@ export function QuizShell() {
         properties: { step: state.step, answer: optionId },
       });
       setTimeout(() => {
-        const newVisible = getVisibleScreens(next.answers);
+        const newVisible = getVisibleScreensForLocale(next.answers, locale);
         const s = state.step + 1;
         if (s >= newVisible.length) {
           finishQuiz(next.answers, state.email);
@@ -134,7 +138,7 @@ export function QuizShell() {
         });
       }, 250);
     },
-    [state, screen, persist, finishQuiz, track]
+    [state, screen, persist, finishQuiz, track, locale]
   );
 
   const toggleMultiple = useCallback(
@@ -167,7 +171,7 @@ export function QuizShell() {
         event: "quiz_step_answered",
         properties: { step: state.step, answer: selected },
       });
-      const newVisible = getVisibleScreens(updatedAnswers);
+      const newVisible = getVisibleScreensForLocale(updatedAnswers, locale);
       const nextStep = state.step + 1;
       if (nextStep >= newVisible.length) {
         finishQuiz(updatedAnswers, state.email);
@@ -179,13 +183,13 @@ export function QuizShell() {
         properties: { step: nextStep, stage: newVisible[nextStep]?.id ?? "" },
       });
     },
-    [state, screen, track, persist, finishQuiz]
+    [state, screen, track, persist, finishQuiz, locale]
   );
 
   const submitEmail = useCallback(() => {
     const email = state.email.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError("Please enter a valid email address");
+      setEmailError(copy.emailInvalid);
       return;
     }
     setEmailError("");
@@ -194,7 +198,7 @@ export function QuizShell() {
       properties: { email_domain: email.split("@")[1] },
     });
     goNext();
-  }, [state.email, track, goNext]);
+  }, [state.email, track, goNext, copy.emailInvalid]);
 
   const submitName = useCallback(
     (skip: boolean) => {
@@ -211,7 +215,7 @@ export function QuizShell() {
         event: "quiz_step_answered",
         properties: { step: state.step, answer: skip ? 'skipped' : 'provided' },
       });
-      const newVisible = getVisibleScreens(next.answers);
+      const newVisible = getVisibleScreensForLocale(next.answers, locale);
       const nextStep = state.step + 1;
       if (nextStep >= newVisible.length) {
         finishQuiz(next.answers, state.email);
@@ -219,7 +223,7 @@ export function QuizShell() {
       }
       persist({ ...next, step: nextStep });
     },
-    [state, screen, persist, track, finishQuiz]
+    [state, screen, persist, track, finishQuiz, locale]
   );
 
   // Loading screen auto-advance
@@ -252,7 +256,7 @@ export function QuizShell() {
   if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center surface-warm-gradient">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+        <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
       </div>
     );
   }
@@ -268,7 +272,7 @@ export function QuizShell() {
             <button
               onClick={goBack}
               className="text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2 rounded-xl hover:bg-muted/60 min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
-              aria-label="Go back"
+              aria-label={copy.goBack}
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path
@@ -311,6 +315,7 @@ export function QuizShell() {
             <EmailScreen
               email={state.email}
               error={emailError}
+              copy={copy}
               onChange={(e) => persist({ ...state, email: e })}
               onSubmit={submitEmail}
             />
@@ -318,6 +323,8 @@ export function QuizShell() {
             <NameInputScreen
               screen={screen}
               value={state.childName}
+              copy={copy}
+              t={t}
               onChange={(v) => persist({ ...state, childName: v })}
               onContinue={() => submitName(false)}
               onSkip={() => submitName(true)}
@@ -326,12 +333,14 @@ export function QuizShell() {
             <PreviewScreen
               screen={screen}
               answers={state.answers}
+              copy={copy}
               onContinue={goNext}
             />
           ) : screen.type === "affirmation" || screen.type === "micro-insight" ? (
             <AffirmationScreen
               screen={screen}
               answers={state.answers}
+              t={t}
               onContinue={goNext}
             />
           ) : screen.type === "single" ? (
@@ -344,6 +353,8 @@ export function QuizShell() {
             <MultipleChoiceScreen
               screen={screen}
               selected={(state.answers[screen.id] as string[]) || []}
+              copy={copy}
+              t={t}
               onToggle={(id) =>
                 toggleMultiple(id, screen.maxSelections || 2)
               }
@@ -407,11 +418,15 @@ function SingleChoiceScreen({
 function MultipleChoiceScreen({
   screen,
   selected,
+  copy,
+  t,
   onToggle,
   onConfirm,
 }: {
   screen: QuizScreen;
   selected: string[];
+  copy: ShellCopy;
+  t: Dictionary;
   onToggle: (id: string) => void;
   onConfirm: (selected: string[]) => void;
 }) {
@@ -465,11 +480,11 @@ function MultipleChoiceScreen({
           className="w-full"
           size="lg"
         >
-          Continue
+          {t.common.continue}
         </Button>
         {screen.maxSelections && (
           <p className="text-xs text-center text-muted-foreground mt-2.5">
-            Select up to {screen.maxSelections}
+            {copy.selectUpTo(screen.maxSelections)}
           </p>
         )}
       </div>
@@ -480,10 +495,12 @@ function MultipleChoiceScreen({
 function AffirmationScreen({
   screen,
   answers,
+  t,
   onContinue,
 }: {
   screen: QuizScreen;
   answers: Record<string, string | string[]>;
+  t: Dictionary;
   onContinue: () => void;
 }) {
   const text = screen.dynamicText
@@ -515,7 +532,7 @@ function AffirmationScreen({
         </p>
       )}
       <Button onClick={onContinue} size="lg" className="w-full max-w-xs">
-        Continue
+        {t.common.continue}
       </Button>
     </div>
   );
@@ -524,12 +541,16 @@ function AffirmationScreen({
 function NameInputScreen({
   screen,
   value,
+  copy,
+  t,
   onChange,
   onContinue,
   onSkip,
 }: {
   screen: QuizScreen;
   value: string;
+  copy: ShellCopy;
+  t: Dictionary;
   onChange: (v: string) => void;
   onContinue: () => void;
   onSkip: () => void;
@@ -550,7 +571,7 @@ function NameInputScreen({
       <div className="max-w-sm">
         <Input
           type="text"
-          placeholder="First name or nickname"
+          placeholder={copy.namePlaceholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
@@ -559,10 +580,10 @@ function NameInputScreen({
         />
         <div className="flex gap-3 mt-6">
           <Button onClick={onContinue} disabled={!value.trim()} size="lg" className="flex-1">
-            Continue
+            {t.common.continue}
           </Button>
           <Button onClick={onSkip} variant="outline" size="lg" className="flex-1">
-            Skip
+            {t.common.skip}
           </Button>
         </div>
       </div>
@@ -573,10 +594,12 @@ function NameInputScreen({
 function PreviewScreen({
   screen,
   answers,
+  copy,
   onContinue,
 }: {
   screen: QuizScreen;
   answers: Record<string, string | string[]>;
+  copy: ShellCopy;
   onContinue: () => void;
 }) {
   const lines = screen.dynamicText
@@ -589,14 +612,14 @@ function PreviewScreen({
         <div className="mb-4">
           <Image
             src="/images/illustrations/tinyplan-quiz-discovery.png"
-            alt="Discovering your child's unique play profile"
+            alt={copy.previewImageAlt}
             width={1448}
             height={1086}
             className="w-full max-w-[240px] mx-auto h-auto rounded-xl"
           />
         </div>
         <h2 className="text-2xl font-bold mb-1">{screen.text}</h2>
-        <p className="text-muted-foreground">Based on your answers, we&apos;re building:</p>
+        <p className="text-muted-foreground">{copy.previewSubtitle}</p>
       </div>
       <div className="hero-card p-6 mb-8">
         <ul className="space-y-3.5">
@@ -613,7 +636,7 @@ function PreviewScreen({
         </ul>
       </div>
       <Button onClick={onContinue} size="lg" className="w-full">
-        Save my plan
+        {copy.saveMyPlan}
       </Button>
     </div>
   );
@@ -622,11 +645,13 @@ function PreviewScreen({
 function EmailScreen({
   email,
   error,
+  copy,
   onChange,
   onSubmit,
 }: {
   email: string;
   error: string;
+  copy: ShellCopy;
   onChange: (v: string) => void;
   onSubmit: () => void;
 }) {
@@ -638,30 +663,30 @@ function EmailScreen({
           <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
         </svg>
       </div>
-      <h2 className="text-2xl font-bold mb-3">Where should we save your plan?</h2>
+      <h2 className="text-2xl font-bold mb-3">{copy.emailTitle}</h2>
       <p className="text-muted-foreground mb-8 leading-relaxed max-w-sm mx-auto">
-        We&apos;ll save your personalized plan and send your first week.
+        {copy.emailSubtitle}
       </p>
       <div className="max-w-sm mx-auto">
         <Input
           type="email"
-          placeholder="your@email.com"
+          placeholder={copy.emailPlaceholder}
           value={email}
           error={error}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onSubmit()}
         />
         <Button onClick={onSubmit} size="lg" className="w-full mt-5">
-          Save my plan
+          {copy.saveMyPlan}
         </Button>
         <div className="flex items-center justify-center gap-1.5 mt-5 text-xs text-muted-foreground">
           <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
           </svg>
           <span>
-            We respect your data.{" "}
+            {copy.privacyNote}{" "}
             <Link href={localizeHref("/privacy", locale)} className="underline hover:text-foreground transition-colors">
-              Privacy Policy
+              {copy.privacyLink}
             </Link>
           </span>
         </div>

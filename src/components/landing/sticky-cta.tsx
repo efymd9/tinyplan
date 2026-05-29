@@ -5,9 +5,15 @@ import { useEffect, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
+const COPY = {
+  es: { buildPlan: "Crear mi plan gratis" },
+  en: { buildPlan: "Build my free plan" },
+} as const;
+
 export function StickyMobileCTA() {
   const [show, setShow] = useState(false);
   const locale = useLocale();
+  const copy = COPY[locale];
 
   useEffect(() => {
     const onScroll = () => setShow(window.scrollY > 560);
@@ -26,7 +32,7 @@ export function StickyMobileCTA() {
         href={localizeHref("/quiz", locale)}
         className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary text-[17px] font-semibold text-white cta-glow active:scale-[0.98]"
       >
-        Build my free plan
+        {copy.buildPlan}
       </Link>
     </div>
   );

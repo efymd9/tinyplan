@@ -1,3 +1,7 @@
+"use client";
+
+import { useLocale } from "@/components/i18n/locale-provider";
+
 interface TinyPlanMemoryProps {
   goalDisplayText: string;
   bestMomentDisplay: string;
@@ -7,6 +11,35 @@ interface TinyPlanMemoryProps {
   feedbackCounts: Record<string, number>;
 }
 
+const COPY = {
+  es: {
+    heading: "Memoria de TinyPlan",
+    soFar: "Hasta ahora sabemos:",
+    mainGoal: (goal: string) => `Tu objetivo principal es ${goal}`,
+    easiestMoment: (m: string) => `${m} es tu momento más fácil`,
+    fitsFamily: (s: string) => `${s} encaja con tu familia`,
+    playStyle: (p: string) => `Tu estilo de juego es ${p}`,
+    hardestMoment: (m: string) => `${m} es el momento que se siente más difícil`,
+    feltRight: "Las actividades que “salieron bien” mantienen la misma energía",
+    tooHard: "Algunas actividades fueron muy difíciles — las vamos a ajustar",
+    morePatterns: (n: number) =>
+      `Completa ${n} ${n === 1 ? "actividad" : "actividades"} más y empezaremos a notar patrones más claros.`,
+  },
+  en: {
+    heading: "TinyPlan Memory",
+    soFar: "So far we know:",
+    mainGoal: (goal: string) => `Your main goal is ${goal}`,
+    easiestMoment: (m: string) => `${m} is your easiest moment`,
+    fitsFamily: (s: string) => `${s} fits your family`,
+    playStyle: (p: string) => `Your play style is ${p}`,
+    hardestMoment: (m: string) => `${m} is the moment that feels hardest`,
+    feltRight: "Activities that 'felt right' keep the same energy",
+    tooHard: "Some activities felt too hard -- we'll adjust",
+    morePatterns: (n: number) =>
+      `Complete ${n} more ${n === 1 ? "activity" : "activities"} and we'll start spotting stronger patterns.`,
+  },
+} as const;
+
 export function TinyPlanMemory({
   goalDisplayText,
   bestMomentDisplay,
@@ -15,6 +48,8 @@ export function TinyPlanMemory({
   hardMomentDisplay,
   feedbackCounts,
 }: TinyPlanMemoryProps) {
+  const locale = useLocale();
+  const copy = COPY[locale];
   const done = feedbackCounts["done"] ?? 0;
   const tooHard = feedbackCounts["too_hard"] ?? 0;
   const total = Object.values(feedbackCounts).reduce((s, n) => s + n, 0);
@@ -24,32 +59,32 @@ export function TinyPlanMemory({
 
   if (goalDisplayText) {
     bullets.push(
-      `Your main goal is ${goalDisplayText.charAt(0).toLowerCase() + goalDisplayText.slice(1)}`
+      copy.mainGoal(goalDisplayText.charAt(0).toLowerCase() + goalDisplayText.slice(1))
     );
   }
 
   if (bestMomentDisplay) {
-    bullets.push(`${bestMomentDisplay} is your easiest moment`);
+    bullets.push(copy.easiestMoment(bestMomentDisplay));
   }
 
   if (planStyleDisplay) {
-    bullets.push(`${planStyleDisplay} fits your family`);
+    bullets.push(copy.fitsFamily(planStyleDisplay));
   }
 
   if (profileDisplayName) {
-    bullets.push(`Your play style is ${profileDisplayName}`);
+    bullets.push(copy.playStyle(profileDisplayName));
   }
 
   if (hardMomentDisplay) {
-    bullets.push(`${hardMomentDisplay} is the moment that feels hardest`);
+    bullets.push(copy.hardestMoment(hardMomentDisplay));
   }
 
   if (done > 0) {
-    bullets.push("Activities that 'felt right' keep the same energy");
+    bullets.push(copy.feltRight);
   }
 
   if (tooHard > 0) {
-    bullets.push("Some activities felt too hard -- we'll adjust");
+    bullets.push(copy.tooHard);
   }
 
   return (
@@ -70,10 +105,10 @@ export function TinyPlanMemory({
             />
           </svg>
         </div>
-        <h2 className="text-lg font-bold">TinyPlan Memory</h2>
+        <h2 className="text-lg font-bold">{copy.heading}</h2>
       </div>
       <p className="text-sm text-muted-foreground mb-4 ml-[42px]">
-        So far we know:
+        {copy.soFar}
       </p>
 
       <ul className="space-y-2.5 mb-4">
@@ -87,7 +122,7 @@ export function TinyPlanMemory({
 
       {remaining > 0 && (
         <p className="text-xs text-muted-foreground/80 bg-muted/50 rounded-xl px-4 py-3">
-          {`Complete ${remaining} more ${remaining === 1 ? "activity" : "activities"} and we'll start spotting stronger patterns.`}
+          {copy.morePatterns(remaining)}
         </p>
       )}
     </div>

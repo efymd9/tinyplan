@@ -1,3 +1,7 @@
+"use client";
+
+import { useLocale } from "@/components/i18n/locale-provider";
+
 interface InsightCardProps {
   label?: string;
   confidence?: "early" | "pattern" | "strong";
@@ -9,11 +13,24 @@ interface InsightCardProps {
 
 const CONFIDENCE_BADGE: Record<
   "early" | "pattern" | "strong",
-  { text: string; className: string }
+  { className: string }
 > = {
-  early: { text: "Early signal", className: "bg-muted text-muted-foreground" },
-  pattern: { text: "Pattern", className: "bg-accent-light text-accent-dark" },
-  strong: { text: "Strong pattern", className: "bg-secondary-light text-secondary" },
+  early: { className: "bg-muted text-muted-foreground" },
+  pattern: { className: "bg-accent-light text-accent-dark" },
+  strong: { className: "bg-secondary-light text-secondary" },
+};
+
+const CONFIDENCE_TEXT: Record<"es" | "en", Record<"early" | "pattern" | "strong", string>> = {
+  es: {
+    early: "Señal temprana",
+    pattern: "Patrón",
+    strong: "Patrón claro",
+  },
+  en: {
+    early: "Early signal",
+    pattern: "Pattern",
+    strong: "Strong pattern",
+  },
 };
 
 const ACCENT_BG: Record<string, string> = {
@@ -31,6 +48,7 @@ export function InsightCard({
   accent = "muted",
   className = "",
 }: InsightCardProps) {
+  const locale = useLocale();
   return (
     <div className={`${ACCENT_BG[accent]} rounded-xl p-4 ${className}`}>
       {(label || confidence) && (
@@ -47,7 +65,7 @@ export function InsightCard({
           )}
           {confidence && (
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ml-auto ${CONFIDENCE_BADGE[confidence].className}`}>
-              {CONFIDENCE_BADGE[confidence].text}
+              {CONFIDENCE_TEXT[locale][confidence]}
             </span>
           )}
         </div>

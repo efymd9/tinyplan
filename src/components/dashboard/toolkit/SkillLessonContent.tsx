@@ -1,24 +1,50 @@
+"use client";
+
 import type { ParentSkill } from "@/data/parent-growth-path";
+import { useLocale } from "@/components/i18n/locale-provider";
+
+const COPY = {
+  es: {
+    whenToUse: "Cuándo usarlo",
+    whatYouPractice: "Qué practicas",
+    threeStepMove: "Movimiento en 3 pasos",
+    sayItLikeThis: "Dilo así",
+    realExamples: "Ejemplos reales",
+    avoidThis: "Evita esto",
+    tinyWin: "Pequeña victoria",
+  },
+  en: {
+    whenToUse: "When to use it",
+    whatYouPractice: "What you practice",
+    threeStepMove: "3-step move",
+    sayItLikeThis: "Say it like this",
+    realExamples: "Real examples",
+    avoidThis: "Avoid this",
+    tinyWin: "Tiny win",
+  },
+} as const;
 
 interface SkillLessonContentProps {
   skill: ParentSkill;
 }
 
 export function SkillLessonContent({ skill }: SkillLessonContentProps) {
+  const locale = useLocale();
+  const copy = COPY[locale];
   return (
     <div className="space-y-5 pt-4">
       {/* When to use */}
-      <Section label="When to use it" icon={<ClockIcon />} tint="tk-tint-skill">
+      <Section label={copy.whenToUse} icon={<ClockIcon />} tint="tk-tint-skill">
         <p className="text-sm leading-relaxed text-foreground">{skill.whenToUse}</p>
       </Section>
 
       {/* What parent practices */}
-      <Section label="What you practice" icon={<StarIcon />} tint="tk-tint-sage">
+      <Section label={copy.whatYouPractice} icon={<StarIcon />} tint="tk-tint-sage">
         <p className="text-sm leading-relaxed text-foreground">{skill.whatYouPractice}</p>
       </Section>
 
       {/* 3-step move */}
-      <Section label="3-step move" icon={<StepsIcon />} tint="tk-tint-yellow">
+      <Section label={copy.threeStepMove} icon={<StepsIcon />} tint="tk-tint-yellow">
         <ol className="space-y-2">
           {skill.steps.map((step, i) => (
             <li key={i} className="flex items-start gap-3">
@@ -32,7 +58,7 @@ export function SkillLessonContent({ skill }: SkillLessonContentProps) {
       </Section>
 
       {/* Scripts */}
-      <Section label="Say it like this" icon={<SpeechIcon />} tint="tk-tint-skill">
+      <Section label={copy.sayItLikeThis} icon={<SpeechIcon />} tint="tk-tint-skill">
         <ul className="space-y-2">
           {skill.scripts.map((script, i) => (
             <li
@@ -49,7 +75,7 @@ export function SkillLessonContent({ skill }: SkillLessonContentProps) {
       </Section>
 
       {/* Examples */}
-      <Section label="Real examples" icon={<ExamplesIcon />} tint="tk-tint-sage">
+      <Section label={copy.realExamples} icon={<ExamplesIcon />} tint="tk-tint-sage">
         <ul className="space-y-2">
           {skill.examples.map((ex, i) => (
             <li key={i} className="flex items-start gap-2 text-sm text-foreground leading-relaxed">
@@ -61,7 +87,7 @@ export function SkillLessonContent({ skill }: SkillLessonContentProps) {
       </Section>
 
       {/* Avoid */}
-      <Section label="Avoid this" icon={<AvoidIcon />} tint="">
+      <Section label={copy.avoidThis} icon={<AvoidIcon />} tint="">
         <div className="flex items-start gap-2 rounded-xl bg-destructive/5 border border-destructive/10 px-3 py-2">
           <span className="text-destructive text-xs font-bold mt-0.5">✕</span>
           <p className="text-sm text-foreground leading-relaxed">{skill.avoid}</p>
@@ -69,7 +95,7 @@ export function SkillLessonContent({ skill }: SkillLessonContentProps) {
       </Section>
 
       {/* Tiny win */}
-      <Section label="Tiny win" icon={<WinIcon />} tint="tk-tint-yellow">
+      <Section label={copy.tinyWin} icon={<WinIcon />} tint="tk-tint-yellow">
         <div className="flex items-start gap-2">
           <span className="text-accent-dark text-base">★</span>
           <p className="text-sm text-foreground leading-relaxed">{skill.tinyWin}</p>

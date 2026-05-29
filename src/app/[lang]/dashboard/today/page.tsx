@@ -6,10 +6,11 @@ import {
   getTodayDayNumber,
   parseWeeklyPlan,
   getQuizTagProfile,
+  localizePlan,
 } from "@/lib/dashboard/helpers";
 import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import type { PlanActivity } from "@/lib/engine/plan-generator";
-import { getSkillByDay, PARENT_GROWTH_PATH } from "@/data/parent-growth-path";
+import { getSkillByDay, getGrowthPath } from "@/data/parent-growth-path";
 import type { ParentSkill } from "@/data/parent-growth-path";
 import {
   DailyHeroCard,
@@ -20,45 +21,181 @@ import { ActivityActions } from "@/components/dashboard/activity-actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { localizeHref } from "@/lib/i18n/href";
-import type { Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n";
+import { resolveLocale, type Locale } from "@/lib/i18n/config";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Today — TinyPlan" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = resolveLocale(lang);
+  return { title: locale === "es" ? "Hoy — TinyPlan" : "Today — TinyPlan" };
+}
+
+// ── Page-specific copy (not in the shared dictionary) ───────────────────────
+
+const COPY = {
+  es: {
+    noPlanTitle: "Aún no tienes un plan",
+    noPlanDesc: "Completa el test para que podamos crear tu primer plan semanal.",
+    noPlanTime: "Toma unos 3 minutos.",
+    startQuiz: "Empezar el test",
+    weekCompleteTitle: "¡Semana completa!",
+    weekCompleteDesc: (n: number) =>
+      `${n} momentos significativos esta semana. Eso es algo de lo que sentirte orgullosa.`,
+    viewProgress: "Ver progreso",
+    browseLibrary: "Ver biblioteca",
+    energy: "energía",
+    ages: "Edades",
+    goalField: "Objetivo",
+    youllNeed: "Qué necesitas",
+    quickVersion: "Versión rápida",
+    fullSteps: "Pasos completos",
+    parentScript: "Qué decir",
+    ifTheyLose: "Si pierde el interés",
+    minTapSteps: "min · toca para ver los pasos",
+    heroChips: ["Juego", "Habilidad", "Práctica", "Apoyo", "Check-in"],
+    playMoment: "Momento de juego",
+    parentSkillLesson: "Lección para madres y padres",
+    realLifePractice: "Práctica en la vida real",
+    tryItToday: "Pruébalo una vez hoy",
+    ifItGetsHard: "Si se pone difícil",
+    backupMove: "Plan B",
+    tinyCheckin: "Check-in rápido",
+    howDidToday: "¿Cómo te fue hoy?",
+    checkinSummary: "Tu respuesta da forma al kit de mañana.",
+    doneOf: (n: number) => `${n}/7 listos`,
+    upNext: "Lo que sigue",
+    day: "Día",
+    upNextTomorrow: "Mañana sigue",
+    thisWeek: "Esta semana",
+    meaningfulMoments: (n: number) => `${n}/7 momentos significativos`,
+    viewAll: "Ver todo",
+    needHelpNow: "¿Necesitas ayuda ahora?",
+    sosChips: [
+      { label: "Pantallas", href: "/dashboard/sos" },
+      { label: "Emociones intensas", href: "/dashboard/sos" },
+      { label: "Hora de dormir", href: "/dashboard/sos" },
+      { label: "Pregúntale a TinyPlan", href: "/dashboard/sos#ask" },
+    ],
+    // Skill-fit hint
+    painPhrases: {
+      screen_time: "que terminar el tiempo de pantalla se siente difícil",
+      transitions: "que las transiciones se sienten difíciles",
+      no_ideas: "que te cuesta encontrar nuevas actividades",
+      boredom: "que tu peque se aburre rápido",
+      independent_play: "que cuesta arrancar el juego solo",
+      bedtime: "que la hora de dormir se siente caótica",
+      connection: "que quieres más tiempo juntos",
+    } as Record<string, string>,
+    goalLabels: {
+      easier_bedtime: "una hora de dormir más fácil",
+      fewer_screens: "menos pantallas",
+      calmer_transitions: "transiciones más tranquilas",
+      connection: "más conexión",
+      independent_play: "juego solo con confianza",
+      focus: "concentración",
+      speech: "lenguaje e historias",
+    } as Record<string, string>,
+    fitBoth: (pain: string, goal: string) =>
+      `Nos contaste ${pain} y que quieres ${goal}.`,
+    fitPain: (pain: string) => `Nos contaste ${pain}.`,
+    fitGoal: (goal: string) => `Quieres ${goal}.`,
+    fitDefault: "Creado a partir de tus respuestas del test.",
+  },
+  en: {
+    noPlanTitle: "No plan yet",
+    noPlanDesc: "Complete the quiz so we can build your first weekly plan.",
+    noPlanTime: "It takes about 3 minutes.",
+    startQuiz: "Start the Quiz",
+    weekCompleteTitle: "Week complete!",
+    weekCompleteDesc: (n: number) =>
+      `${n} meaningful moments this week. That's something to be proud of.`,
+    viewProgress: "View Progress",
+    browseLibrary: "Browse Library",
+    energy: "energy",
+    ages: "Ages",
+    goalField: "Goal",
+    youllNeed: "You'll need",
+    quickVersion: "Quick version",
+    fullSteps: "Full steps",
+    parentScript: "Parent script",
+    ifTheyLose: "If they lose interest",
+    minTapSteps: "min · tap to see steps",
+    heroChips: ["Play", "Parent Skill", "Practice", "Backup", "Check-in"],
+    playMoment: "Play Moment",
+    parentSkillLesson: "Parent Skill Lesson",
+    realLifePractice: "Real-Life Practice",
+    tryItToday: "Try it once today",
+    ifItGetsHard: "If It Gets Hard",
+    backupMove: "Backup move",
+    tinyCheckin: "Tiny Check-in",
+    howDidToday: "How did today go?",
+    checkinSummary: "Your answer shapes tomorrow's toolkit.",
+    doneOf: (n: number) => `${n}/7 done`,
+    upNext: "Up next",
+    day: "Day",
+    upNextTomorrow: "Up next tomorrow",
+    thisWeek: "This Week",
+    meaningfulMoments: (n: number) => `${n}/7 meaningful moments`,
+    viewAll: "View all",
+    needHelpNow: "Need help right now?",
+    sosChips: [
+      { label: "Screen time", href: "/dashboard/sos" },
+      { label: "Big feelings", href: "/dashboard/sos" },
+      { label: "Bedtime", href: "/dashboard/sos" },
+      { label: "Ask TinyPlan", href: "/dashboard/sos#ask" },
+    ],
+    painPhrases: {
+      screen_time: "screen-time endings feel hard",
+      transitions: "transitions feel hard",
+      no_ideas: "finding new activities",
+      boredom: "your child gets bored quickly",
+      independent_play: "solo play is hard to start",
+      bedtime: "bedtime feels chaotic",
+      connection: "you want more time together",
+    } as Record<string, string>,
+    goalLabels: {
+      easier_bedtime: "easier bedtime",
+      fewer_screens: "fewer screens",
+      calmer_transitions: "calmer transitions",
+      connection: "more connection",
+      independent_play: "confident solo play",
+      focus: "focus",
+      speech: "speech & stories",
+    } as Record<string, string>,
+    fitBoth: (pain: string, goal: string) =>
+      `You said ${pain} and you want ${goal}.`,
+    fitPain: (pain: string) => `You said ${pain}.`,
+    fitGoal: (goal: string) => `You want ${goal}.`,
+    fitDefault: "Built from your quiz answers.",
+  },
+} as const;
+
+type TodayCopy = (typeof COPY)[Locale];
 
 // ── Personalisation ───────────────────────────────────────────────────────────
 
-const PAIN_PHRASES: Record<string, string> = {
-  screen_time: "screen-time endings feel hard",
-  transitions: "transitions feel hard",
-  no_ideas: "finding new activities",
-  boredom: "your child gets bored quickly",
-  independent_play: "solo play is hard to start",
-  bedtime: "bedtime feels chaotic",
-  connection: "you want more time together",
-};
-
-const GOAL_LABELS: Record<string, string> = {
-  easier_bedtime: "easier bedtime",
-  fewer_screens: "fewer screens",
-  calmer_transitions: "calmer transitions",
-  connection: "more connection",
-  independent_play: "confident solo play",
-  focus: "focus",
-  speech: "speech & stories",
-};
-
-function buildSkillFitHint(ctx: ToolkitContext, skill: ParentSkill): string {
+function buildSkillFitHint(
+  ctx: ToolkitContext,
+  skill: ParentSkill,
+  copy: TodayCopy,
+): string {
   const pains = ctx.mainPainAll ?? (ctx.mainPain ? [ctx.mainPain] : []);
-  const painPhrase = PAIN_PHRASES[pains[0] ?? ""];
-  const goalLabel = GOAL_LABELS[ctx.primaryGoal ?? ""];
+  const painPhrase = copy.painPhrases[pains[0] ?? ""];
+  const goalLabel = copy.goalLabels[ctx.primaryGoal ?? ""];
 
   const opening =
     painPhrase && goalLabel
-      ? `You said ${painPhrase} and you want ${goalLabel}.`
+      ? copy.fitBoth(painPhrase, goalLabel)
       : painPhrase
-        ? `You said ${painPhrase}.`
+        ? copy.fitPain(painPhrase)
         : goalLabel
-          ? `You want ${goalLabel}.`
-          : "Built from your quiz answers.";
+          ? copy.fitGoal(goalLabel)
+          : copy.fitDefault;
 
   return `${opening} ${skill.whenToUse}`;
 }
@@ -81,11 +218,13 @@ function PlayMomentContent({
   steps,
   materials,
   timeMinutes,
+  copy,
 }: {
   activity: PlanActivity;
   steps: string[];
   materials: string[];
   timeMinutes: number;
+  copy: TodayCopy;
 }) {
   return (
     <div className="pt-4 space-y-4">
@@ -96,7 +235,7 @@ function PlayMomentContent({
         </span>
         {activity.energy_level && (
           <span className="text-xs bg-muted/80 px-2.5 py-1 rounded-full font-medium capitalize">
-            {activity.energy_level} energy
+            {activity.energy_level} {copy.energy}
           </span>
         )}
         {activity.category && (
@@ -106,19 +245,19 @@ function PlayMomentContent({
         )}
         {activity.age_min != null && activity.age_max != null && (
           <span className="text-xs bg-muted/80 px-2.5 py-1 rounded-full font-medium">
-            Ages {activity.age_min}–{activity.age_max}
+            {copy.ages} {activity.age_min}–{activity.age_max}
           </span>
         )}
       </div>
 
       {activity.why_it_works && (
-        <Field label="Goal">
+        <Field label={copy.goalField}>
           <p className="text-sm leading-relaxed">{activity.why_it_works}</p>
         </Field>
       )}
 
       {materials.length > 0 && (
-        <Field label="You&apos;ll need">
+        <Field label={copy.youllNeed}>
           <ul className="space-y-1">
             {materials.map((m, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
@@ -131,13 +270,13 @@ function PlayMomentContent({
       )}
 
       {activity.easier_version && (
-        <Field label="Quick version">
+        <Field label={copy.quickVersion}>
           <p className="text-sm leading-relaxed">{activity.easier_version}</p>
         </Field>
       )}
 
       {steps.length > 0 && (
-        <Field label="Full steps">
+        <Field label={copy.fullSteps}>
           <ol className="space-y-3">
             {steps.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm">
@@ -154,7 +293,7 @@ function PlayMomentContent({
       {activity.parent_script && (
         <div className="bg-secondary-light/50 border border-secondary/15 rounded-xl p-3">
           <p className="text-xs font-semibold text-secondary mb-1.5 uppercase tracking-wider">
-            Parent script
+            {copy.parentScript}
           </p>
           <p className="text-sm italic leading-relaxed">
             &ldquo;{activity.parent_script}&rdquo;
@@ -164,7 +303,7 @@ function PlayMomentContent({
 
       {activity.fallback_if_refuses && (
         <div className="bg-accent-light/50 border border-accent/15 rounded-xl p-3">
-          <p className="text-xs font-semibold text-accent-dark mb-1">If they lose interest</p>
+          <p className="text-xs font-semibold text-accent-dark mb-1">{copy.ifTheyLose}</p>
           <p className="text-sm leading-relaxed">{activity.fallback_if_refuses}</p>
         </div>
       )}
@@ -222,6 +361,9 @@ export default async function TodayPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const locale = resolveLocale(lang);
+  const copy = COPY[locale];
+  const dict = getDictionary(locale);
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -235,19 +377,17 @@ export default async function TodayPage({
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">No plan yet</h1>
-        <p className="text-muted-foreground mb-2">
-          Complete the quiz so we can build your first weekly plan.
-        </p>
-        <p className="text-sm text-muted-foreground mb-6">It takes about 3 minutes.</p>
-        <Link href={localizeHref("/quiz", lang as Locale)}>
-          <Button size="lg">Start the Quiz</Button>
+        <h1 className="text-2xl font-bold mb-2">{copy.noPlanTitle}</h1>
+        <p className="text-muted-foreground mb-2">{copy.noPlanDesc}</p>
+        <p className="text-sm text-muted-foreground mb-6">{copy.noPlanTime}</p>
+        <Link href={localizeHref("/quiz", locale)}>
+          <Button size="lg">{copy.startQuiz}</Button>
         </Link>
       </div>
     );
   }
 
-  const weeklyPlan = parseWeeklyPlan(plan.plan_json);
+  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
   const dayNumber = getTodayDayNumber(plan.created_at!);
   const todayPlan = weeklyPlan.days.find((d) => d.dayNumber === dayNumber);
   const tomorrowPlan = weeklyPlan.days.find((d) => d.dayNumber === dayNumber + 1);
@@ -264,16 +404,16 @@ export default async function TodayPage({
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">Week complete!</h1>
+        <h1 className="text-2xl font-bold mb-2">{copy.weekCompleteTitle}</h1>
         <p className="text-muted-foreground mb-2">
-          {completedCount} meaningful moments this week. That&apos;s something to be proud of.
+          {copy.weekCompleteDesc(completedCount)}
         </p>
         <div className="flex gap-3 justify-center mt-6">
-          <Link href={localizeHref("/dashboard/progress", lang as Locale)}>
-            <Button>View Progress</Button>
+          <Link href={localizeHref("/dashboard/progress", locale)}>
+            <Button>{copy.viewProgress}</Button>
           </Link>
-          <Link href={localizeHref("/dashboard/library", lang as Locale)}>
-            <Button variant="outline">Browse Library</Button>
+          <Link href={localizeHref("/dashboard/library", locale)}>
+            <Button variant="outline">{copy.browseLibrary}</Button>
           </Link>
         </div>
       </div>
@@ -308,8 +448,8 @@ export default async function TodayPage({
         struggle: recentStruggle,
       };
 
-  const skill = getSkillByDay(dayNumber) ?? PARENT_GROWTH_PATH[0];
-  const whyThisFits = buildSkillFitHint(toolkitCtx, skill);
+  const skill = getSkillByDay(dayNumber, locale) ?? getGrowthPath(locale)[0];
+  const whyThisFits = buildSkillFitHint(toolkitCtx, skill, copy);
 
   return (
     <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-8 max-w-5xl mx-auto">
@@ -320,7 +460,7 @@ export default async function TodayPage({
           <DailyHeroCard
             skill={skill}
             whyThisFits={whyThisFits}
-            chips={["Play", "Parent Skill", "Practice", "Backup", "Check-in"]}
+            chips={[...copy.heroChips]}
           />
           {/* Progress dots */}
           <div className="flex items-center gap-1.5 mt-3 px-1">
@@ -337,7 +477,7 @@ export default async function TodayPage({
               />
             ))}
             <span className="text-xs text-muted-foreground font-medium ml-1.5">
-              {completedCount}/7 done
+              {copy.doneOf(completedCount)}
             </span>
           </div>
         </div>
@@ -346,9 +486,9 @@ export default async function TodayPage({
         <div className="space-y-3 mb-8">
           {/* 1. Play Moment */}
           <ToolkitAccordionCard
-            label="Play Moment"
+            label={copy.playMoment}
             title={activity.title}
-            summary={activity.description ?? `${todayPlan.timeMinutes} min · tap to see steps`}
+            summary={activity.description ?? `${todayPlan.timeMinutes} ${copy.minTapSteps}`}
             accent="play"
             icon={<PlayIcon />}
             defaultOpen
@@ -358,12 +498,13 @@ export default async function TodayPage({
               steps={steps}
               materials={materials}
               timeMinutes={todayPlan.timeMinutes}
+              copy={copy}
             />
           </ToolkitAccordionCard>
 
           {/* 2. Parent Skill Lesson */}
           <ToolkitAccordionCard
-            label="Parent Skill Lesson"
+            label={copy.parentSkillLesson}
             title={skill.title}
             summary={skill.whatYouPractice}
             accent="skill"
@@ -374,8 +515,8 @@ export default async function TodayPage({
 
           {/* 3. Real-Life Practice */}
           <ToolkitAccordionCard
-            label="Real-Life Practice"
-            title="Try it once today"
+            label={copy.realLifePractice}
+            title={copy.tryItToday}
             summary={skill.realLifePractice}
             accent="sage"
             icon={<PracticeIcon />}
@@ -387,8 +528,8 @@ export default async function TodayPage({
 
           {/* 4. If It Gets Hard */}
           <ToolkitAccordionCard
-            label="If It Gets Hard"
-            title="Backup move"
+            label={copy.ifItGetsHard}
+            title={copy.backupMove}
             summary={skill.backup}
             accent="sos"
             icon={<ShieldIcon />}
@@ -404,9 +545,9 @@ export default async function TodayPage({
 
           {/* 5. Tiny Check-in */}
           <ToolkitAccordionCard
-            label="Tiny Check-in"
-            title="How did today go?"
-            summary="Your answer shapes tomorrow's toolkit."
+            label={copy.tinyCheckin}
+            title={copy.howDidToday}
+            summary={copy.checkinSummary}
             accent="neutral"
             icon={<CheckCircleIcon />}
           >
@@ -424,12 +565,12 @@ export default async function TodayPage({
         {/* Mobile: tomorrow preview */}
         {tomorrowPlan && (
           <Link
-            href={localizeHref("/dashboard/week", lang as Locale)}
+            href={localizeHref("/dashboard/week", locale)}
             className="lg:hidden flex items-center justify-between bg-muted/50 border border-border-whisper rounded-xl p-4 mb-5 hover:bg-muted transition-colors"
           >
             <div className="min-w-0">
               <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-                Up next &middot; Day {tomorrowPlan.dayNumber}
+                {copy.upNext} &middot; {copy.day} {tomorrowPlan.dayNumber}
               </span>
               <p className="text-sm font-semibold truncate">{tomorrowPlan.activity.title}</p>
             </div>
@@ -442,18 +583,13 @@ export default async function TodayPage({
         {/* Mobile: SOS preview */}
         <div className="lg:hidden premium-card rounded-2xl p-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Need help right now?
+            {copy.needHelpNow}
           </p>
           <div className="flex gap-2 overflow-x-auto">
-            {[
-              { label: "Screen time", href: "/dashboard/sos" },
-              { label: "Big feelings", href: "/dashboard/sos" },
-              { label: "Bedtime", href: "/dashboard/sos" },
-              { label: "Ask TinyPlan", href: "/dashboard/sos#ask" },
-            ].map((item) => (
+            {copy.sosChips.map((item) => (
               <Link
                 key={item.label}
-                href={localizeHref(item.href, lang as Locale)}
+                href={localizeHref(item.href, locale)}
                 className="shrink-0 text-xs font-medium px-3.5 py-2 rounded-full bg-muted/80 shadow-xs hover:bg-border transition-colors min-h-[44px] flex items-center"
               >
                 {item.label}
@@ -468,11 +604,11 @@ export default async function TodayPage({
         {tomorrowPlan && (
           <div className="premium-card rounded-2xl p-5">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              Up next tomorrow
+              {copy.upNextTomorrow}
             </p>
             <p className="font-semibold mb-1">{tomorrowPlan.activity.title}</p>
             <div className="flex gap-2 text-xs text-muted-foreground">
-              <span>{tomorrowPlan.timeMinutes} min</span>
+              <span>{tomorrowPlan.timeMinutes} {dict.common.min}</span>
               <span>&middot;</span>
               <span>{tomorrowPlan.routineMoment}</span>
             </div>
@@ -481,7 +617,7 @@ export default async function TodayPage({
 
         <div className="premium-card rounded-2xl p-5">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            This Week
+            {copy.thisWeek}
           </p>
           <div className="flex gap-1.5 mb-3">
             {weeklyPlan.days.map((d) => {
@@ -501,27 +637,22 @@ export default async function TodayPage({
             })}
           </div>
           <div className="flex justify-between items-center text-xs text-muted-foreground">
-            <span>{completedCount}/7 meaningful moments</span>
-            <Link href={localizeHref("/dashboard/week", lang as Locale)} className="text-primary font-medium hover:underline">
-              View all
+            <span>{copy.meaningfulMoments(completedCount)}</span>
+            <Link href={localizeHref("/dashboard/week", locale)} className="text-primary font-medium hover:underline">
+              {copy.viewAll}
             </Link>
           </div>
         </div>
 
         <div className="premium-card rounded-2xl p-5">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Need help right now?
+            {copy.needHelpNow}
           </p>
           <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: "Screen time", href: "/dashboard/sos" },
-              { label: "Big feelings", href: "/dashboard/sos" },
-              { label: "Bedtime", href: "/dashboard/sos" },
-              { label: "Ask TinyPlan", href: "/dashboard/sos#ask" },
-            ].map((item) => (
+            {copy.sosChips.map((item) => (
               <Link
                 key={item.label}
-                href={localizeHref(item.href, lang as Locale)}
+                href={localizeHref(item.href, locale)}
                 className="text-xs font-medium px-3 py-2.5 rounded-full bg-muted/80 shadow-xs hover:bg-border transition-colors text-center"
               >
                 {item.label}

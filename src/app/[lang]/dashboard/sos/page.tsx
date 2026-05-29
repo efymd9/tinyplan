@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { sosScripts, type SosScript } from "@/data/sos-scripts";
+import { getSosScripts, type SosScript } from "@/data/sos-scripts";
 import { AskTinyPlan } from "@/components/dashboard/ask-tinyplan";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
+import type { Locale } from "@/lib/i18n/config";
 
 const iconMap: Record<string, React.ReactNode> = {
   phone: (
@@ -48,6 +50,61 @@ const iconMap: Record<string, React.ReactNode> = {
   ),
 };
 
+const COPY = {
+  es: {
+    headerTitle: "SOS / centro de calma",
+    headerSubtitle: "Cuéntame qué está pasando y te doy un reinicio personalizado.",
+    quickSituations: "Situaciones rápidas",
+    scriptsCount: (n: number) => `${n} guiones`,
+    sectionFirstThirty: "Primeros 30 segundos",
+    sectionWhatToSay: "Qué decir",
+    sectionWhatNotToDo: "Qué no hacer",
+    sectionAfterCalm: "Después de la calma",
+    sectionTinyNextStep: "Siguiente pasito",
+    saveAsPattern: "Guardar como patrón",
+    adjustTomorrow: "Ajustar mañana",
+    gotIt: (label: string) => `Listo: ${label.toLowerCase()}.`,
+    back: "Atrás",
+    backToAll: "Volver a todas las situaciones",
+    imageAlt: "Apoyo tranquilo para los momentos difíciles de crianza",
+    safetyNote:
+      "TinyPlan no es un profesional médico. Para preocupaciones serias, consulta con tu pediatra.",
+  },
+  en: {
+    headerTitle: "SOS / calm command center",
+    headerSubtitle: "Describe what’s happening and get a personalised reset.",
+    quickSituations: "Quick situations",
+    scriptsCount: (n: number) => `${n} scripts`,
+    sectionFirstThirty: "First 30 seconds",
+    sectionWhatToSay: "What to say",
+    sectionWhatNotToDo: "What not to do",
+    sectionAfterCalm: "After calm",
+    sectionTinyNextStep: "Tiny next step",
+    saveAsPattern: "Save this as pattern",
+    adjustTomorrow: "Adjust tomorrow",
+    gotIt: (label: string) => `Got it — ${label.toLowerCase()}.`,
+    back: "Back",
+    backToAll: "Back to all situations",
+    imageAlt: "Calm support for difficult parenting moments",
+    safetyNote:
+      "TinyPlan is not a medical professional. For serious concerns, please consult your paediatrician.",
+  },
+} as const;
+
+type Copy = (typeof COPY)[Locale];
+
+function getScriptSections(
+  copy: Copy,
+): { key: keyof SosScript; label: string; accent: string }[] {
+  return [
+    { key: "firstThirtySeconds", label: copy.sectionFirstThirty, accent: "from-primary-light to-primary-light/50 text-primary" },
+    { key: "whatToSay", label: copy.sectionWhatToSay, accent: "from-primary-light/80 to-primary-light/40 text-primary" },
+    { key: "whatNotToDo", label: copy.sectionWhatNotToDo, accent: "from-accent-light to-accent-light/50 text-accent-dark" },
+    { key: "afterCalm", label: copy.sectionAfterCalm, accent: "from-secondary-light to-secondary-light/50 text-secondary" },
+    { key: "tinyNextStep", label: copy.sectionTinyNextStep, accent: "from-secondary-light/80 to-secondary-light/40 text-secondary" },
+  ];
+}
+
 function CardGrid({
   scripts,
   onSelect,
@@ -88,28 +145,20 @@ function CardGrid({
   );
 }
 
-const SCRIPT_SECTIONS: { key: keyof SosScript; label: string; accent: string }[] = [
-  { key: "firstThirtySeconds", label: "First 30 seconds", accent: "from-primary-light to-primary-light/50 text-primary" },
-  { key: "whatToSay", label: "What to say", accent: "from-primary-light/80 to-primary-light/40 text-primary" },
-  { key: "whatNotToDo", label: "What not to do", accent: "from-accent-light to-accent-light/50 text-accent-dark" },
-  { key: "afterCalm", label: "After calm", accent: "from-secondary-light to-secondary-light/50 text-secondary" },
-  { key: "tinyNextStep", label: "Tiny next step", accent: "from-secondary-light/80 to-secondary-light/40 text-secondary" },
-];
-
-function ScriptActionButtons() {
+function ScriptActionButtons({ copy }: { copy: Copy }) {
   const [saved, setSaved] = useState<string | null>(null);
 
   if (saved) {
     return (
       <p className="text-xs text-muted-foreground italic pt-1">
-        Got it — {saved.toLowerCase()}.
+        {copy.gotIt(saved)}
       </p>
     );
   }
 
   return (
     <div className="flex flex-wrap gap-2 pt-2">
-      {["Save this as pattern", "Adjust tomorrow"].map((label) => (
+      {[copy.saveAsPattern, copy.adjustTomorrow].map((label) => (
         <button
           key={label}
           onClick={() => setSaved(label)}
@@ -124,11 +173,14 @@ function ScriptActionButtons() {
 
 function ScriptDetail({
   script,
+  copy,
   onBack,
 }: {
   script: SosScript;
+  copy: Copy;
   onBack: () => void;
 }) {
+  const sections = getScriptSections(copy);
   return (
     <div className="max-w-xl mx-auto animate-fade-up">
       <button
@@ -144,7 +196,7 @@ function ScriptDetail({
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back
+        {copy.back}
       </button>
 
       <div className="flex items-center gap-3 mb-2">
@@ -156,7 +208,7 @@ function ScriptDetail({
       <p className="text-muted-foreground text-sm mb-6">{script.situation}</p>
 
       <div className="space-y-3 mb-4">
-        {SCRIPT_SECTIONS.map(({ key, label, accent }) => (
+        {sections.map(({ key, label, accent }) => (
           <div
             key={key}
             className={`bg-gradient-to-br ${accent} rounded-2xl p-5 shadow-card`}
@@ -169,19 +221,23 @@ function ScriptDetail({
         ))}
       </div>
 
-      <ScriptActionButtons />
+      <ScriptActionButtons copy={copy} />
 
       <button
         onClick={onBack}
         className="w-full py-3 text-sm font-medium text-muted-foreground hover:text-foreground border border-border-whisper hover:border-border rounded-2xl transition-all shadow-xs hover:shadow-card mt-4"
       >
-        Back to all situations
+        {copy.backToAll}
       </button>
     </div>
   );
 }
 
 export default function SosPage() {
+  const locale = useLocale();
+  const t = useT();
+  const copy = COPY[locale];
+  const scripts = getSosScripts(locale);
   const [selectedScript, setSelectedScript] = useState<SosScript | null>(null);
 
   if (selectedScript) {
@@ -189,6 +245,7 @@ export default function SosPage() {
       <div className="max-w-2xl mx-auto">
         <ScriptDetail
           script={selectedScript}
+          copy={copy}
           onBack={() => setSelectedScript(null)}
         />
       </div>
@@ -201,17 +258,20 @@ export default function SosPage() {
         <div className="rounded-2xl overflow-hidden mb-4 bg-gradient-to-b from-accent-light/30 to-transparent">
           <Image
             src="/images/illustrations/tinyplan-calm-support.png"
-            alt="Calm support for difficult parenting moments"
+            alt={copy.imageAlt}
             width={1448}
             height={1086}
             className="w-full max-w-xs mx-auto h-auto"
           />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
-          SOS / calm command center
+          {copy.headerTitle}
         </h1>
+        <p className="text-muted-foreground text-sm mb-1">
+          {t.dashboard.sos.subtitle}
+        </p>
         <p className="text-muted-foreground text-sm mb-5">
-          Describe what&rsquo;s happening and get a personalised reset.
+          {copy.headerSubtitle}
         </p>
 
         <AskTinyPlan inline />
@@ -219,17 +279,16 @@ export default function SosPage() {
 
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-bold">Quick situations</h2>
+          <h2 className="text-lg font-bold">{copy.quickSituations}</h2>
           <span className="text-xs text-muted-foreground font-medium bg-muted px-2.5 py-0.5 rounded-full">
-            {sosScripts.length} scripts
+            {copy.scriptsCount(scripts.length)}
           </span>
         </div>
-        <CardGrid scripts={sosScripts} onSelect={setSelectedScript} />
+        <CardGrid scripts={scripts} onSelect={setSelectedScript} />
       </div>
 
       <p className="text-[11px] text-muted-foreground text-center leading-snug pb-4">
-        TinyPlan is not a medical professional. For serious concerns, please
-        consult your paediatrician.
+        {copy.safetyNote}
       </p>
     </div>
   );

@@ -2,18 +2,51 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 // Two positive buttons ("Felt right" and "Loved it") both store as "done" so they
 // count as a meaningful moment everywhere; the negative/neutral ones keep their own
 // status so the next day's toolkit can lean gentler. No schema change needed —
-// these statuses are already accepted by /api/dashboard/log.
-const CHOICES: { label: string; status: string; positive: boolean }[] = [
-  { label: "Felt right", status: "done", positive: true },
-  { label: "Too hard", status: "too_hard", positive: false },
-  { label: "Child refused", status: "child_refused", positive: false },
-  { label: "We skipped", status: "skipped", positive: false },
-  { label: "Loved it", status: "done", positive: true },
-];
+// these statuses are already accepted by /api/dashboard/log. Labels are localized;
+// the `status` values stay stable across locales.
+type Choice = { label: string; status: string; positive: boolean };
+
+const COPY = {
+  es: {
+    choices: [
+      { label: "Salió bien", status: "done", positive: true },
+      { label: "Muy difícil", status: "too_hard", positive: false },
+      { label: "Se negó", status: "child_refused", positive: false },
+      { label: "Lo saltamos", status: "skipped", positive: false },
+      { label: "Le encantó", status: "done", positive: true },
+    ] as Choice[],
+    tinyCheckin: "Mini check-in",
+    thirtySec: "30 seg",
+    noted: "Anotado. Mañana se ajustará.",
+    howDidItFeel: "¿Cómo se sintió hoy?",
+    notedSub: "Gracias — tu respuesta moldea el día de mañana en silencio.",
+    tapOne: "Toca una. Ajusta el kit de mañana en silencio.",
+    oneCheckin: "Un check-in significativo hoy.",
+    noWrongAnswer: "No hay respuesta incorrecta — incluso saltarlo nos ayuda a ajustar el día siguiente.",
+  },
+  en: {
+    choices: [
+      { label: "Felt right", status: "done", positive: true },
+      { label: "Too hard", status: "too_hard", positive: false },
+      { label: "Child refused", status: "child_refused", positive: false },
+      { label: "We skipped", status: "skipped", positive: false },
+      { label: "Loved it", status: "done", positive: true },
+    ] as Choice[],
+    tinyCheckin: "Tiny check-in",
+    thirtySec: "30 sec",
+    noted: "Noted. Tomorrow will adjust.",
+    howDidItFeel: "How did today feel?",
+    notedSub: "Thanks — your answer quietly shapes tomorrow.",
+    tapOne: "Tap one. It quietly tunes tomorrow's toolkit.",
+    oneCheckin: "One meaningful check-in today.",
+    noWrongAnswer: "No wrong answer — even a skip helps us tune the next day.",
+  },
+} as const;
 
 export function TinyCheckin({
   planId,
@@ -27,6 +60,8 @@ export function TinyCheckin({
   currentStatus?: string | null;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const copy = COPY[locale];
   const alreadyLogged = Boolean(currentStatus && currentStatus !== "pending");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(alreadyLogged);
@@ -66,19 +101,17 @@ export function TinyCheckin({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-              Tiny check-in
+              {copy.tinyCheckin}
             </span>
             <span className="text-[10px] font-medium text-muted-foreground bg-muted/80 shadow-xs px-2 py-0.5 rounded-full">
-              30 sec
+              {copy.thirtySec}
             </span>
           </div>
           <p className="font-semibold leading-snug truncate">
-            {submitted ? "Noted. Tomorrow will adjust." : "How did today feel?"}
+            {submitted ? copy.noted : copy.howDidItFeel}
           </p>
           <p className="text-xs text-muted-foreground truncate">
-            {submitted
-              ? "Thanks — your answer quietly shapes tomorrow."
-              : "Tap one. It quietly tunes tomorrow's toolkit."}
+            {submitted ? copy.notedSub : copy.tapOne}
           </p>
         </div>
         <svg
@@ -103,14 +136,14 @@ export function TinyCheckin({
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-secondary">Noted. Tomorrow will adjust.</p>
-                <p className="text-xs text-muted-foreground">One meaningful check-in today.</p>
+                <p className="text-sm font-semibold text-secondary">{copy.noted}</p>
+                <p className="text-xs text-muted-foreground">{copy.oneCheckin}</p>
               </div>
             </div>
           ) : (
             <>
               <div className="flex flex-wrap gap-2 pt-4">
-                {CHOICES.map((c) => (
+                {copy.choices.map((c) => (
                   <button
                     key={c.label}
                     type="button"
@@ -127,7 +160,7 @@ export function TinyCheckin({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3">
-                No wrong answer — even a skip helps us tune the next day.
+                {copy.noWrongAnswer}
               </p>
             </>
           )}

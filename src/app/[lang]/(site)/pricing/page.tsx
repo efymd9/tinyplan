@@ -9,14 +9,76 @@ import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/brand-logo";
 import { buildTagProfile, getProfileDisplayName, getGoalDisplayText } from "@/lib/quiz/tags";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
-import { useLocale } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 
+const COPY = {
+  es: {
+    brandHome: "Inicio de TinyPlan",
+    planReadyAlt: "Tu plan de juego personalizado está listo para desbloquear",
+    backToResults: "Volver a los resultados",
+    headlineLine1: "Desbloquea tu kit de herramientas",
+    headlineLine2: "para padres de 7 días",
+    subheadline:
+      "Kits diarios, lecciones para padres, coach SOS y rutinas, todo creado a partir de tus respuestas del test.",
+    fallbackGoal: "Tu plan personalizado",
+    planIncludes: "Tu plan incluye:",
+    valueProps: [
+      "7 kits diarios para padres: un momento de juego y una habilidad cada día",
+      "Lecciones de habilidades para padres con las palabras exactas que decir",
+      "Coach SOS: 8 guiones de calma para la hora de dormir, las pantallas y las rabietas",
+      "Rutinas diarias con guía paso a paso",
+      "Ideas que se adaptan: tu plan evoluciona cada semana",
+      "Acceso a la biblioteca de actividades",
+      "Seguimiento de tu progreso",
+    ],
+    startWith: "Empieza con acceso de 7 días",
+    forDays: "por 7 días",
+    thenMonth: "Luego $14.99/mes · Cancela cuando quieras",
+    cta: "Empieza por $1",
+    finePrice: "$1 por 7 días, luego $14.99/mes. Cancela cuando quieras.",
+    fineScreen:
+      "Sin más tiempo de pantalla para tu peque, solo actividades simples para la vida real.",
+    privacy: "Política de privacidad",
+    terms: "Términos",
+  },
+  en: {
+    brandHome: "TinyPlan home",
+    planReadyAlt: "Your personalised play plan is ready to unlock",
+    backToResults: "Back to results",
+    headlineLine1: "Unlock your personalized",
+    headlineLine2: "7-day parent toolkit",
+    subheadline:
+      "Daily toolkits, parent skill lessons, SOS coach, and routines — all built from your quiz answers.",
+    fallbackGoal: "Your personalized plan",
+    planIncludes: "Your plan includes:",
+    valueProps: [
+      "7 daily parent toolkits — one play moment + one skill each day",
+      "Parent skill lessons with exact words to say",
+      "SOS coach — 8 reset scripts for bedtime, screens, and meltdowns",
+      "Daily routines with step-by-step guidance",
+      "Adaptive insights — your plan evolves each week",
+      "Activity library access",
+      "Progress check-ins",
+    ],
+    startWith: "Start with 7-day access",
+    forDays: "for 7 days",
+    thenMonth: "Then $14.99/month · Cancel anytime",
+    cta: "Start for $1",
+    finePrice: "$1 for 7 days, then $14.99/month. Cancel anytime.",
+    fineScreen:
+      "No extra screen time for your child — just simple activities for real life.",
+    privacy: "Privacy Policy",
+    terms: "Terms",
+  },
+} as const;
+
 function PricingContent() {
   const router = useRouter();
   const locale = useLocale();
+  const c = COPY[locale];
   const { track } = useAnalytics();
   const [loading, setLoading] = useState(false);
 
@@ -73,31 +135,27 @@ function PricingContent() {
   };
 
   const tagProfile = data?.tagProfile;
-  const goalText = tagProfile ? getGoalDisplayText(tagProfile.primary_goal) : "Your personalized plan";
-  const profileName = tagProfile ? getProfileDisplayName(tagProfile.play_profile) : "";
+  const goalText = tagProfile
+    ? getGoalDisplayText(tagProfile.primary_goal, locale)
+    : c.fallbackGoal;
+  const profileName = tagProfile
+    ? getProfileDisplayName(tagProfile.play_profile, locale)
+    : "";
 
-  const valueProps = [
-    "7 daily parent toolkits — one play moment + one skill each day",
-    "Parent skill lessons with exact words to say",
-    "SOS coach — 8 reset scripts for bedtime, screens, and meltdowns",
-    "Daily routines with step-by-step guidance",
-    "Adaptive insights — your plan evolves each week",
-    "Activity library access",
-    "Progress check-ins",
-  ];
+  const valueProps = c.valueProps;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-md border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Link href={localizeHref("/", locale)} aria-label="TinyPlan home">
+          <Link href={localizeHref("/", locale)} aria-label={c.brandHome}>
             <BrandLogo width={130} />
           </Link>
           <Link
             href={localizeHref("/result", locale)}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
-            Back to results
+            {c.backToResults}
           </Link>
         </div>
       </header>
@@ -107,21 +165,18 @@ function PricingContent() {
           <div className="mb-5">
             <Image
               src="/images/illustrations/tinyplan-plan-ready.png"
-              alt="Your personalised play plan is ready to unlock"
+              alt={c.planReadyAlt}
               width={1448}
               height={1086}
               className="w-full max-w-xs mx-auto h-auto rounded-2xl"
             />
           </div>
           <h1 className="text-2xl font-bold mb-2">
-            Unlock your personalized
+            {c.headlineLine1}
             <br />
-            7-day parent toolkit
+            {c.headlineLine2}
           </h1>
-          <p className="text-muted-foreground">
-            Daily toolkits, parent skill lessons, SOS coach, and routines &mdash;
-            all built from your quiz answers.
-          </p>
+          <p className="text-muted-foreground">{c.subheadline}</p>
         </div>
 
         {tagProfile && (
@@ -133,7 +188,7 @@ function PricingContent() {
         )}
 
         <Card className="mb-6 shadow-card">
-          <p className="font-semibold mb-3">Your plan includes:</p>
+          <p className="font-semibold mb-3">{c.planIncludes}</p>
           <ul className="space-y-2.5">
             {valueProps.map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-sm">
@@ -160,16 +215,12 @@ function PricingContent() {
 
         <Card className="mb-6 border-primary/30 border-[1.5px] shadow-hero">
           <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-1">
-              Start with 7-day access
-            </p>
+            <p className="text-sm text-muted-foreground mb-1">{c.startWith}</p>
             <div className="flex items-baseline justify-center gap-1 mb-1">
               <span className="text-4xl font-bold gradient-text-primary">$1</span>
-              <span className="text-muted-foreground">for 7 days</span>
+              <span className="text-muted-foreground">{c.forDays}</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Then $14.99/month · Cancel anytime
-            </p>
+            <p className="text-sm text-muted-foreground">{c.thenMonth}</p>
           </div>
         </Card>
 
@@ -179,22 +230,18 @@ function PricingContent() {
           onClick={handleCheckout}
           loading={loading}
         >
-          Start for $1
+          {c.cta}
         </Button>
 
         <div className="text-center space-y-2">
-          <p className="text-xs text-muted-foreground">
-            $1 for 7 days, then $14.99/month. Cancel anytime.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            No extra screen time for your child — just simple activities for real life.
-          </p>
+          <p className="text-xs text-muted-foreground">{c.finePrice}</p>
+          <p className="text-xs text-muted-foreground">{c.fineScreen}</p>
           <div className="flex justify-center gap-4 pt-2">
             <Link href={localizeHref("/privacy", locale)} className="text-xs text-muted-foreground underline">
-              Privacy Policy
+              {c.privacy}
             </Link>
             <Link href={localizeHref("/terms", locale)} className="text-xs text-muted-foreground underline">
-              Terms
+              {c.terms}
             </Link>
           </div>
         </div>
@@ -208,11 +255,16 @@ export default function PricingPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
+          <SuspenseFallback />
         </div>
       }
     >
       <PricingContent />
     </Suspense>
   );
+}
+
+function SuspenseFallback() {
+  const t = useT();
+  return <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>;
 }

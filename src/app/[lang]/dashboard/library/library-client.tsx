@@ -6,11 +6,174 @@ import Link from "next/link";
 import { SpotIcon } from "@/components/illustrations/activity-illustrations";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
-import { sosScripts } from "@/data/sos-scripts";
+import type { Locale } from "@/lib/i18n/config";
+import { getSosScripts } from "@/data/sos-scripts";
 import type { SosScript } from "@/data/sos-scripts";
-import { PARENT_GROWTH_PATH } from "@/data/parent-growth-path";
+import { getGrowthPath } from "@/data/parent-growth-path";
 import { ToolkitAccordionCard } from "@/components/dashboard/toolkit/ToolkitAccordionCard";
 import { SkillLessonContent } from "@/components/dashboard/toolkit/SkillLessonContent";
+
+// ── Page-specific bilingual copy (not in the shared dictionary) ─────────────
+
+const CLIENT_COPY = {
+  es: {
+    tabs: {
+      activities: "Actividades",
+      "parent-skills": "Habilidades",
+      "sos-scripts": "Guiones SOS",
+      resets: "Pausas de 3 min",
+      routines: "Rutinas",
+      saved: "Guardados",
+    },
+    filterChips: {
+      All: "Todas",
+      "No prep": "Sin preparación",
+      "3 min": "3 min",
+      Bedtime: "Hora de dormir",
+      Outside: "Al aire libre",
+      "Low energy": "Baja energía",
+      Refuses: "Si se niega",
+      "Screen-free": "Sin pantallas",
+    } as Record<string, string>,
+    searchPlaceholder: {
+      activities: "Buscar actividades...",
+      "parent-skills": "Buscar habilidades...",
+      "sos-scripts": "Buscar guiones...",
+      resets: "Buscar pausas...",
+      routines: "Buscar rutinas...",
+      saved: "Buscar guardados...",
+    },
+    headerTitle: "Centro de herramientas",
+    headerSubtitle: "Actividades, habilidades y guiones para cada momento.",
+    headerAlt: "Explora actividades sin pantallas pensadas para tu peque",
+    today: "Hoy",
+    done: "Listo",
+    day: "Día",
+    energy: "energía",
+    noPrep: "Sin preparación",
+    open: "Abrir",
+    swapIntoToday: "Cambiar por la de hoy",
+    bestForLead: "Ideal para",
+    quickVersion: "Versión rápida",
+    steps: "Pasos",
+    whatToSay: "Qué decir",
+    materials: "Qué necesitas",
+    whyItWorks: "Por qué funciona",
+    openTodaysActivity: "Abrir la actividad de hoy",
+    saved: "Guardado",
+    save: "Guardar",
+    saveAria: "Guardar actividad",
+    unsaveAria: "Quitar de guardados",
+    sosScriptLabel: "Guión SOS",
+    first30: "Primeros 30 segundos",
+    avoidThis: "Evita esto",
+    afterCalm: "Después de la calma",
+    tinyNextStep: "Pequeño paso siguiente",
+    recommendedTitle: "Recomendado para ti",
+    recommendedSubtitle: "Actividades de baja preparación elegidas para tu familia.",
+    yourCurrentPlan: "Tu plan actual",
+    moreIdeas: "Más ideas",
+    noMatchActivities: "Ninguna actividad coincide con tu búsqueda.",
+    clearFilters: "Limpiar filtros",
+    parentSkillsIntro:
+      "Siete habilidades de crianza basadas en evidencia, una por día. Cada una incluye guiones, ejemplos y una pequeña victoria para practicar hoy.",
+    noMatchSkills: "Ninguna habilidad coincide con tu búsqueda.",
+    sosIntro:
+      "Guiones paso a paso para los momentos más difíciles de la crianza. Toca cualquier tarjeta para ver el enfoque completo.",
+    noMatchScripts: "Ningún guión coincide con tu búsqueda.",
+    resetsNoneTitle: "Aún no hay pausas de 3 minutos en tu biblioteca.",
+    resetsNoneSub: "Aquí aparecen las actividades de 3 minutos o menos.",
+    resetsIntro:
+      "Actividades de 3 minutos o menos — perfectas para transiciones, pausas rápidas y momentos sin mucho tiempo.",
+    routinesNoneTitle: "Aún no hay actividades de rutina en tu biblioteca.",
+    routinesNoneSub:
+      "Aquí aparecen las actividades para la hora de dormir, la mañana y las transiciones.",
+    routinesIntro:
+      "Actividades diseñadas para construir rutinas predecibles para las mañanas, la hora de dormir y las transiciones diarias.",
+    savedEmptyTitle: "Aún no tienes actividades guardadas",
+    savedEmptySub: "Toca el marcador en cualquier actividad para guardarla aquí.",
+    savedNoMatch: "Ninguna actividad guardada coincide con tu búsqueda.",
+  },
+  en: {
+    tabs: {
+      activities: "Activities",
+      "parent-skills": "Parent Skills",
+      "sos-scripts": "SOS Scripts",
+      resets: "3-Min Resets",
+      routines: "Routines",
+      saved: "Saved",
+    },
+    filterChips: {
+      All: "All",
+      "No prep": "No prep",
+      "3 min": "3 min",
+      Bedtime: "Bedtime",
+      Outside: "Outside",
+      "Low energy": "Low energy",
+      Refuses: "Refuses",
+      "Screen-free": "Screen-free",
+    } as Record<string, string>,
+    searchPlaceholder: {
+      activities: "Search activities...",
+      "parent-skills": "Search skills...",
+      "sos-scripts": "Search scripts...",
+      resets: "Search resets...",
+      routines: "Search routines...",
+      saved: "Search saved...",
+    },
+    headerTitle: "Toolkit Hub",
+    headerSubtitle: "Activities, skills, and scripts for every moment.",
+    headerAlt: "Browse screen-free activities matched to your child",
+    today: "Today",
+    done: "Done",
+    day: "Day",
+    energy: "energy",
+    noPrep: "No prep",
+    open: "Open",
+    swapIntoToday: "Swap into today",
+    bestForLead: "Best for",
+    quickVersion: "Quick version",
+    steps: "Steps",
+    whatToSay: "What to say",
+    materials: "Materials",
+    whyItWorks: "Why it works",
+    openTodaysActivity: "Open today's activity",
+    saved: "Saved",
+    save: "Save",
+    saveAria: "Save activity",
+    unsaveAria: "Unsave activity",
+    sosScriptLabel: "SOS Script",
+    first30: "First 30 seconds",
+    avoidThis: "Avoid this",
+    afterCalm: "After calm",
+    tinyNextStep: "Tiny next step",
+    recommendedTitle: "Recommended for You",
+    recommendedSubtitle: "Low-prep activities picked for your family.",
+    yourCurrentPlan: "Your Current Plan",
+    moreIdeas: "More Ideas",
+    noMatchActivities: "No activities match your search.",
+    clearFilters: "Clear filters",
+    parentSkillsIntro:
+      "Seven evidence-based parenting skills, one per day. Each includes scripts, examples, and a tiny win to practise today.",
+    noMatchSkills: "No skills match your search.",
+    sosIntro:
+      "Step-by-step scripts for the hardest parenting moments. Tap any card to see the full approach.",
+    noMatchScripts: "No scripts match your search.",
+    resetsNoneTitle: "No 3-minute resets in your library yet.",
+    resetsNoneSub: "Activities that take 3 minutes or less appear here.",
+    resetsIntro:
+      "Activities that take 3 minutes or less — perfect for transitions, quick breaks, and low-time moments.",
+    routinesNoneTitle: "No routine activities in your library yet.",
+    routinesNoneSub: "Bedtime, morning, and transition activities appear here.",
+    routinesIntro:
+      "Activities designed to build predictable routines for mornings, bedtimes, and daily transitions.",
+    savedEmptyTitle: "No saved activities yet",
+    savedEmptySub: "Tap the bookmark on any activity to save it here.",
+    savedNoMatch: "No saved activities match your search.",
+  },
+} as const;
+
+type ClientCopy = (typeof CLIENT_COPY)[Locale];
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -207,6 +370,7 @@ function ActivityCard({
   showSwap,
   isSaved,
   onToggleSave,
+  copy,
 }: {
   activity: LibraryActivity;
   isExpanded: boolean;
@@ -216,6 +380,7 @@ function ActivityCard({
   showSwap?: boolean;
   isSaved?: boolean;
   onToggleSave?: (id: string) => void;
+  copy: ClientCopy;
 }) {
   const locale = useLocale();
   const steps: string[] = activity.steps_json
@@ -256,17 +421,17 @@ function ActivityCard({
               <h3 className="font-semibold text-sm">{activity.title}</h3>
               {isToday && (
                 <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0 shadow-xs">
-                  Today
+                  {copy.today}
                 </span>
               )}
               {isCompleted && !isToday && (
                 <span className="text-[10px] font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-full shrink-0 shadow-xs">
-                  Done
+                  {copy.done}
                 </span>
               )}
               {activity.dayNumber != null && !isToday && !isCompleted && (
                 <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0 shadow-xs">
-                  Day {activity.dayNumber}
+                  {copy.day} {activity.dayNumber}
                 </span>
               )}
             </div>
@@ -278,14 +443,14 @@ function ActivityCard({
               )}
               {activity.energy_level && (
                 <span className="text-xs text-muted-foreground">
-                  &middot; {activity.energy_level} energy
+                  &middot; {activity.energy_level} {copy.energy}
                 </span>
               )}
               {(!activity.materials ||
                 activity.materials.trim() === "" ||
                 activity.materials === "none") && (
                 <span className="text-xs text-primary font-medium">
-                  &middot; No prep
+                  &middot; {copy.noPrep}
                 </span>
               )}
             </div>
@@ -302,7 +467,7 @@ function ActivityCard({
                     onClick={(e) => e.stopPropagation()}
                     className="text-[11px] font-medium px-3 py-1 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors shadow-xs"
                   >
-                    Open
+                    {copy.open}
                   </Link>
                 ) : (
                   showSwap && (
@@ -311,7 +476,7 @@ function ActivityCard({
                       onClick={(e) => e.stopPropagation()}
                       className="text-[11px] font-medium px-3 py-1 rounded-full border border-primary/20 bg-primary-light text-primary hover:bg-primary/10 transition-colors"
                     >
-                      Swap into today
+                      {copy.swapIntoToday}
                     </Link>
                   )
                 )}
@@ -326,7 +491,7 @@ function ActivityCard({
                 e.stopPropagation();
                 onToggleSave(activity.id);
               }}
-              aria-label={isSaved ? "Unsave activity" : "Save activity"}
+              aria-label={isSaved ? copy.unsaveAria : copy.saveAria}
               className={`p-1.5 rounded-full transition-colors ${
                 isSaved
                   ? "text-primary"
@@ -369,7 +534,7 @@ function ActivityCard({
                 />
               </svg>
               <span>
-                Best for{" "}
+                {copy.bestForLead}{" "}
                 <span className="font-medium text-foreground">
                   {activity.bestFor}
                 </span>
@@ -380,7 +545,7 @@ function ActivityCard({
           {activity.easier_version && (
             <div className="bg-gradient-to-br from-accent-light to-accent-light/50 border border-accent/10 rounded-xl p-4">
               <h4 className="text-sm font-semibold text-accent-dark mb-1">
-                Quick version
+                {copy.quickVersion}
               </h4>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {activity.easier_version}
@@ -390,7 +555,7 @@ function ActivityCard({
 
           {steps.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold mb-2">Steps</h4>
+              <h4 className="text-sm font-semibold mb-2">{copy.steps}</h4>
               <ol className="space-y-1.5">
                 {steps.map((step, i) => (
                   <li key={i} className="flex gap-2 text-sm">
@@ -409,7 +574,7 @@ function ActivityCard({
           {activity.parent_script && (
             <div className="bg-gradient-to-br from-primary-light/80 to-primary-light/40 rounded-xl p-4">
               <h4 className="text-sm font-semibold text-primary mb-1">
-                What to say
+                {copy.whatToSay}
               </h4>
               <p className="text-sm italic leading-relaxed">
                 &ldquo;{activity.parent_script}&rdquo;
@@ -421,7 +586,7 @@ function ActivityCard({
             activity.materials.trim() !== "" &&
             activity.materials !== "none" && (
               <div>
-                <h4 className="text-sm font-semibold mb-1">Materials</h4>
+                <h4 className="text-sm font-semibold mb-1">{copy.materials}</h4>
                 <p className="text-sm text-muted-foreground">
                   {activity.materials}
                 </p>
@@ -431,7 +596,7 @@ function ActivityCard({
           {activity.why_it_works && (
             <div className="bg-gradient-to-br from-secondary-light to-secondary-light/50 rounded-xl p-4">
               <h4 className="text-sm font-semibold text-secondary mb-1">
-                Why it works
+                {copy.whyItWorks}
               </h4>
               <p className="text-sm text-muted-foreground">
                 {activity.why_it_works}
@@ -447,7 +612,7 @@ function ActivityCard({
                 }}
                 className="text-xs font-medium px-4 py-2.5 rounded-full border border-primary/20 bg-primary-light text-primary hover:bg-primary/10 transition-colors"
               >
-                Swap into today
+                {copy.swapIntoToday}
               </button>
             )}
             {isToday && (
@@ -455,7 +620,7 @@ function ActivityCard({
                 href={localizeHref("/dashboard/today", locale)}
                 className="text-xs font-medium px-4 py-2.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors shadow-xs"
               >
-                Open today&apos;s activity
+                {copy.openTodaysActivity}
               </Link>
             )}
             {onToggleSave && (
@@ -467,7 +632,7 @@ function ActivityCard({
                     : "border-border-whisper bg-muted text-muted-foreground hover:border-primary/20 hover:text-primary"
                 }`}
               >
-                {isSaved ? "Saved" : "Save"}
+                {isSaved ? copy.saved : copy.save}
               </button>
             )}
           </div>
@@ -604,10 +769,10 @@ const SOS_ICON_MAP: Record<string, React.ReactNode> = {
 
 // ── SOS Script card ────────────────────────────────────────────────────────
 
-function SosScriptItem({ script }: { script: SosScript }) {
+function SosScriptItem({ script, copy }: { script: SosScript; copy: ClientCopy }) {
   return (
     <ToolkitAccordionCard
-      label="SOS Script"
+      label={copy.sosScriptLabel}
       title={script.title}
       summary={script.situation}
       accent="sos"
@@ -616,7 +781,7 @@ function SosScriptItem({ script }: { script: SosScript }) {
       <div className="space-y-3 pt-4">
         <div className="rounded-xl p-3 tk-tint-play">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-            First 30 seconds
+            {copy.first30}
           </p>
           <p className="text-sm leading-relaxed text-foreground">
             {script.firstThirtySeconds}
@@ -625,7 +790,7 @@ function SosScriptItem({ script }: { script: SosScript }) {
 
         <div className="rounded-xl border border-primary/10 bg-gradient-to-br from-primary-light/80 to-primary-light/40 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-            What to say
+            {copy.whatToSay}
           </p>
           <p className="text-sm italic leading-relaxed text-foreground">
             &ldquo;{script.whatToSay}&rdquo;
@@ -634,7 +799,7 @@ function SosScriptItem({ script }: { script: SosScript }) {
 
         <div className="rounded-xl border border-destructive/10 bg-destructive/5 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-            Avoid this
+            {copy.avoidThis}
           </p>
           <p className="text-sm leading-relaxed text-foreground">
             {script.whatNotToDo}
@@ -643,7 +808,7 @@ function SosScriptItem({ script }: { script: SosScript }) {
 
         <div className="rounded-xl p-3 tk-tint-sage">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-            After calm
+            {copy.afterCalm}
           </p>
           <p className="text-sm leading-relaxed text-foreground">
             {script.afterCalm}
@@ -652,7 +817,7 @@ function SosScriptItem({ script }: { script: SosScript }) {
 
         <div className="rounded-xl p-3 tk-tint-yellow">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-            Tiny next step
+            {copy.tinyNextStep}
           </p>
           <p className="text-sm leading-relaxed text-foreground">
             {script.tinyNextStep}
@@ -675,6 +840,7 @@ function ActivitiesTab({
   onToggleSave,
   search,
   setSearch,
+  copy,
 }: {
   planActivities: LibraryActivity[];
   moreActivities: LibraryActivity[];
@@ -685,6 +851,7 @@ function ActivitiesTab({
   onToggleSave: (id: string) => void;
   search: string;
   setSearch: (v: string) => void;
+  copy: ClientCopy;
 }) {
   const [activeChip, setActiveChip] = useState<FilterChip>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -724,14 +891,14 @@ function ActivitiesTab({
                 : "bg-card border border-border-whisper shadow-xs hover:shadow-card hover:border-primary/20 text-muted-foreground"
             }`}
           >
-            {chip}
+            {copy.filterChips[chip] ?? chip}
           </button>
         ))}
       </div>
 
       {noResults && (
         <div className="text-center py-12 text-muted-foreground animate-fade-up">
-          <p className="mb-2">No activities match your search.</p>
+          <p className="mb-2">{copy.noMatchActivities}</p>
           <button
             onClick={() => {
               setSearch("");
@@ -739,7 +906,7 @@ function ActivitiesTab({
             }}
             className="text-primary text-sm font-medium hover:underline"
           >
-            Clear filters
+            {copy.clearFilters}
           </button>
         </div>
       )}
@@ -749,10 +916,10 @@ function ActivitiesTab({
           <div className="hero-card p-4 mb-3">
             <div className="flex items-center gap-2 mb-1">
               <SpotIcon type="insight" className="w-6 h-6" />
-              <h2 className="text-lg font-bold">Recommended for You</h2>
+              <h2 className="text-lg font-bold">{copy.recommendedTitle}</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Low-prep activities picked for your family.
+              {copy.recommendedSubtitle}
             </p>
           </div>
           <div className="space-y-3">
@@ -773,6 +940,7 @@ function ActivitiesTab({
                 showSwap={!!todayActivityId}
                 isSaved={savedSet.has(activity.id)}
                 onToggleSave={onToggleSave}
+                copy={copy}
               />
             ))}
           </div>
@@ -797,7 +965,7 @@ function ActivitiesTab({
                 />
               </svg>
             </div>
-            <h2 className="text-lg font-bold">Your Current Plan</h2>
+            <h2 className="text-lg font-bold">{copy.yourCurrentPlan}</h2>
             <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full shadow-xs">
               {filteredPlan.length}
             </span>
@@ -818,6 +986,7 @@ function ActivitiesTab({
                 showSwap={!!todayActivityId}
                 isSaved={savedSet.has(activity.id)}
                 onToggleSave={onToggleSave}
+                copy={copy}
               />
             ))}
           </div>
@@ -842,7 +1011,7 @@ function ActivitiesTab({
                 />
               </svg>
             </div>
-            <h2 className="text-lg font-bold">More Ideas</h2>
+            <h2 className="text-lg font-bold">{copy.moreIdeas}</h2>
             <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full shadow-xs">
               {filteredMore.length}
             </span>
@@ -861,6 +1030,7 @@ function ActivitiesTab({
                 showSwap={!!todayActivityId}
                 isSaved={savedSet.has(activity.id)}
                 onToggleSave={onToggleSave}
+                copy={copy}
               />
             ))}
           </div>
@@ -872,8 +1042,16 @@ function ActivitiesTab({
 
 // ── Parent Skills Tab ──────────────────────────────────────────────────────
 
-function ParentSkillsTab({ search }: { search: string }) {
-  const filtered = PARENT_GROWTH_PATH.filter(
+function ParentSkillsTab({
+  search,
+  locale,
+  copy,
+}: {
+  search: string;
+  locale: Locale;
+  copy: ClientCopy;
+}) {
+  const filtered = getGrowthPath(locale).filter(
     (s) =>
       !search ||
       s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -884,7 +1062,7 @@ function ParentSkillsTab({ search }: { search: string }) {
   if (filtered.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p>No skills match your search.</p>
+        <p>{copy.noMatchSkills}</p>
       </div>
     );
   }
@@ -893,15 +1071,14 @@ function ParentSkillsTab({ search }: { search: string }) {
     <>
       <div className="hero-card p-4 mb-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Seven evidence-based parenting skills, one per day. Each includes
-          scripts, examples, and a tiny win to practise today.
+          {copy.parentSkillsIntro}
         </p>
       </div>
       <div className="space-y-3 mb-8">
         {filtered.map((skill) => (
           <ToolkitAccordionCard
             key={skill.id}
-            label={`Day ${skill.dayNumber}`}
+            label={`${copy.day} ${skill.dayNumber}`}
             title={skill.title}
             summary={skill.whenToUse}
             accent={skill.accent}
@@ -916,8 +1093,16 @@ function ParentSkillsTab({ search }: { search: string }) {
 
 // ── SOS Scripts Tab ────────────────────────────────────────────────────────
 
-function SosScriptsTab({ search }: { search: string }) {
-  const filtered = sosScripts.filter(
+function SosScriptsTab({
+  search,
+  locale,
+  copy,
+}: {
+  search: string;
+  locale: Locale;
+  copy: ClientCopy;
+}) {
+  const filtered = getSosScripts(locale).filter(
     (s) =>
       !search ||
       s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -928,20 +1113,19 @@ function SosScriptsTab({ search }: { search: string }) {
     <>
       <div className="hero-card p-4 mb-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Step-by-step scripts for the hardest parenting moments. Tap any card
-          to see the full approach.
+          {copy.sosIntro}
         </p>
       </div>
 
       {filtered.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          <p>No scripts match your search.</p>
+          <p>{copy.noMatchScripts}</p>
         </div>
       )}
 
       <div className="space-y-3 mb-8">
         {filtered.map((script) => (
-          <SosScriptItem key={script.id} script={script} />
+          <SosScriptItem key={script.id} script={script} copy={copy} />
         ))}
       </div>
     </>
@@ -958,6 +1142,7 @@ function ThreeMinResetsTab({
   savedIds,
   onToggleSave,
   search,
+  copy,
 }: {
   planActivities: LibraryActivity[];
   moreActivities: LibraryActivity[];
@@ -966,6 +1151,7 @@ function ThreeMinResetsTab({
   savedIds: string[];
   onToggleSave: (id: string) => void;
   search: string;
+  copy: ClientCopy;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const completedSet = new Set(completedIds);
@@ -983,8 +1169,8 @@ function ThreeMinResetsTab({
   if (resets.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground animate-fade-up">
-        <p className="mb-1">No 3-minute resets in your library yet.</p>
-        <p className="text-xs">Activities that take 3 minutes or less appear here.</p>
+        <p className="mb-1">{copy.resetsNoneTitle}</p>
+        <p className="text-xs">{copy.resetsNoneSub}</p>
       </div>
     );
   }
@@ -993,8 +1179,7 @@ function ThreeMinResetsTab({
     <>
       <div className="hero-card p-4 mb-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Activities that take 3 minutes or less — perfect for transitions,
-          quick breaks, and low-time moments.
+          {copy.resetsIntro}
         </p>
       </div>
       <div className="space-y-3 mb-8">
@@ -1011,6 +1196,7 @@ function ThreeMinResetsTab({
             showSwap={!!todayActivityId}
             isSaved={savedSet.has(activity.id)}
             onToggleSave={onToggleSave}
+            copy={copy}
           />
         ))}
       </div>
@@ -1028,6 +1214,7 @@ function RoutinesTab({
   savedIds,
   onToggleSave,
   search,
+  copy,
 }: {
   planActivities: LibraryActivity[];
   moreActivities: LibraryActivity[];
@@ -1036,6 +1223,7 @@ function RoutinesTab({
   savedIds: string[];
   onToggleSave: (id: string) => void;
   search: string;
+  copy: ClientCopy;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const completedSet = new Set(completedIds);
@@ -1064,10 +1252,8 @@ function RoutinesTab({
   if (routines.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground animate-fade-up">
-        <p className="mb-1">No routine activities in your library yet.</p>
-        <p className="text-xs">
-          Bedtime, morning, and transition activities appear here.
-        </p>
+        <p className="mb-1">{copy.routinesNoneTitle}</p>
+        <p className="text-xs">{copy.routinesNoneSub}</p>
       </div>
     );
   }
@@ -1076,8 +1262,7 @@ function RoutinesTab({
     <>
       <div className="hero-card p-4 mb-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Activities designed to build predictable routines for mornings,
-          bedtimes, and daily transitions.
+          {copy.routinesIntro}
         </p>
       </div>
       <div className="space-y-3 mb-8">
@@ -1094,6 +1279,7 @@ function RoutinesTab({
             showSwap={!!todayActivityId}
             isSaved={savedSet.has(activity.id)}
             onToggleSave={onToggleSave}
+            copy={copy}
           />
         ))}
       </div>
@@ -1111,6 +1297,7 @@ function SavedTab({
   todayActivityId,
   completedIds,
   search,
+  copy,
 }: {
   planActivities: LibraryActivity[];
   moreActivities: LibraryActivity[];
@@ -1119,6 +1306,7 @@ function SavedTab({
   todayActivityId: string | null;
   completedIds: string[];
   search: string;
+  copy: ClientCopy;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const completedSet = new Set(completedIds);
@@ -1142,10 +1330,8 @@ function SavedTab({
             />
           </svg>
         </div>
-        <p className="text-sm font-medium mb-1">No saved activities yet</p>
-        <p className="text-xs">
-          Tap the bookmark on any activity to save it here.
-        </p>
+        <p className="text-sm font-medium mb-1">{copy.savedEmptyTitle}</p>
+        <p className="text-xs">{copy.savedEmptySub}</p>
       </div>
     );
   }
@@ -1161,7 +1347,7 @@ function SavedTab({
   if (saved.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p>No saved activities match your search.</p>
+        <p>{copy.savedNoMatch}</p>
       </div>
     );
   }
@@ -1181,6 +1367,7 @@ function SavedTab({
           showSwap={!!todayActivityId}
           isSaved={savedSet.has(activity.id)}
           onToggleSave={onToggleSave}
+          copy={copy}
         />
       ))}
     </div>
@@ -1196,6 +1383,8 @@ export function LibraryClient({
   todayActivityId,
   completedIds,
 }: LibraryClientProps) {
+  const locale = useLocale();
+  const copy = CLIENT_COPY[locale];
   const [activeTab, setActiveTab] = useState<LibraryTab>("activities");
   const [search, setSearch] = useState("");
   const [savedIds, setSavedIds] = useState<string[]>(() => {
@@ -1219,14 +1408,7 @@ export function LibraryClient({
     });
   }
 
-  const searchPlaceholder: Record<LibraryTab, string> = {
-    activities: "Search activities...",
-    "parent-skills": "Search skills...",
-    "sos-scripts": "Search scripts...",
-    resets: "Search resets...",
-    routines: "Search routines...",
-    saved: "Search saved...",
-  };
+  const searchPlaceholder: Record<LibraryTab, string> = copy.searchPlaceholder;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -1235,17 +1417,17 @@ export function LibraryClient({
         <div className="rounded-2xl overflow-hidden mb-4 bg-gradient-to-b from-primary-light/30 to-transparent">
           <Image
             src="/images/illustrations/tinyplan-activity-library.png"
-            alt="Browse screen-free activities matched to your child"
+            alt={copy.headerAlt}
             width={1448}
             height={1086}
             className="w-full max-w-xs mx-auto h-auto"
           />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold mb-1 tracking-tight">
-          Toolkit Hub
+          {copy.headerTitle}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Activities, skills, and scripts for every moment.
+          {copy.headerSubtitle}
         </p>
       </div>
 
@@ -1265,7 +1447,7 @@ export function LibraryClient({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab.label}
+              {copy.tabs[tab.id] ?? tab.label}
             </button>
           ))}
         </div>
@@ -1295,10 +1477,15 @@ export function LibraryClient({
           onToggleSave={toggleSave}
           search={search}
           setSearch={setSearch}
+          copy={copy}
         />
       )}
-      {activeTab === "parent-skills" && <ParentSkillsTab search={search} />}
-      {activeTab === "sos-scripts" && <SosScriptsTab search={search} />}
+      {activeTab === "parent-skills" && (
+        <ParentSkillsTab search={search} locale={locale} copy={copy} />
+      )}
+      {activeTab === "sos-scripts" && (
+        <SosScriptsTab search={search} locale={locale} copy={copy} />
+      )}
       {activeTab === "resets" && (
         <ThreeMinResetsTab
           planActivities={planActivities}
@@ -1308,6 +1495,7 @@ export function LibraryClient({
           savedIds={savedIds}
           onToggleSave={toggleSave}
           search={search}
+          copy={copy}
         />
       )}
       {activeTab === "routines" && (
@@ -1319,6 +1507,7 @@ export function LibraryClient({
           savedIds={savedIds}
           onToggleSave={toggleSave}
           search={search}
+          copy={copy}
         />
       )}
       {activeTab === "saved" && (
@@ -1330,6 +1519,7 @@ export function LibraryClient({
           todayActivityId={todayActivityId}
           completedIds={completedIds}
           search={search}
+          copy={copy}
         />
       )}
     </div>

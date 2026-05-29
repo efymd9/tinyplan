@@ -7,11 +7,34 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
+
+const COPY = {
+  es: {
+    verifying: "Verificando tu enlace...",
+    successTitle: "¡Ya estás dentro!",
+    successBody: "Te llevamos a tu panel...",
+    errorTitle: "Enlace vencido o no válido",
+    errorBody: "Es posible que el enlace haya vencido. Pide uno nuevo.",
+    requestNewLink: "Pedir un enlace nuevo",
+    fallback: "Verificando...",
+  },
+  en: {
+    verifying: "Verifying your link...",
+    successTitle: "You're in!",
+    successBody: "Redirecting to your dashboard...",
+    errorTitle: "Link expired or invalid",
+    errorBody: "This link may have expired. Please request a new one.",
+    requestNewLink: "Request new link",
+    fallback: "Verifying...",
+  },
+} as const satisfies Record<Locale, Record<string, string>>;
 
 function VerifyContent() {
   const params = useSearchParams();
   const router = useRouter();
   const locale = useLocale();
+  const c = COPY[locale];
   const token = params.get("token");
   const [status, setStatus] = useState<"verifying" | "success" | "error">(
     token ? "verifying" : "error"
@@ -44,7 +67,7 @@ function VerifyContent() {
               <div className="absolute inset-0 rounded-full border-4 border-muted" />
               <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
             </div>
-            <p className="font-medium">Verifying your link...</p>
+            <p className="font-medium">{c.verifying}</p>
           </>
         )}
         {status === "success" && (
@@ -54,20 +77,20 @@ function VerifyContent() {
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold mb-1">You&apos;re in!</h2>
+            <h2 className="text-xl font-bold mb-1">{c.successTitle}</h2>
             <p className="text-muted-foreground text-sm">
-              Redirecting to your dashboard...
+              {c.successBody}
             </p>
           </>
         )}
         {status === "error" && (
           <>
-            <h2 className="text-xl font-bold mb-2">Link expired or invalid</h2>
+            <h2 className="text-xl font-bold mb-2">{c.errorTitle}</h2>
             <p className="text-muted-foreground text-sm mb-4">
-              This link may have expired. Please request a new one.
+              {c.errorBody}
             </p>
             <Link href={localizeHref("/auth/login", locale)}>
-              <Button>Request new link</Button>
+              <Button>{c.requestNewLink}</Button>
             </Link>
           </>
         )}
@@ -81,11 +104,18 @@ export default function VerifyPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Verifying...</div>
+          <div className="animate-pulse text-muted-foreground">
+            <VerifyFallbackText />
+          </div>
         </div>
       }
     >
       <VerifyContent />
     </Suspense>
   );
+}
+
+function VerifyFallbackText() {
+  const locale = useLocale();
+  return <>{COPY[locale].fallback}</>;
 }

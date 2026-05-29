@@ -5,15 +5,34 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
-import { useLocale } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
+
+// Checkout-success-specific copy. Shared chrome (the "Something went wrong"
+// heading, "Loading...", "Try again") comes from the dictionary via useT().
+const COPY = {
+  es: {
+    buildingTitle: "Creando tu plan...",
+    buildingSubtitle: "Estamos preparando tu plan de actividades de 7 días personalizado.",
+    generateError: "No pudimos generar tu plan. Inténtalo de nuevo.",
+    retakeQuiz: "Repetir el test",
+  },
+  en: {
+    buildingTitle: "Building your plan...",
+    buildingSubtitle: "Setting up your personalized 7-day activity plan.",
+    generateError: "Failed to generate your plan. Please try again.",
+    retakeQuiz: "Retake Quiz",
+  },
+} as const;
 
 function SuccessContent() {
   const { track } = useAnalytics();
   const router = useRouter();
   const locale = useLocale();
+  const t = useT();
+  const copy = COPY[locale];
 
   const parsedAnswers = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -56,10 +75,10 @@ function SuccessContent() {
       })
       .catch((err) => {
         console.error("Plan generation error:", err);
-        setError("Failed to generate your plan. Please try again.");
+        setError(copy.generateError);
         generatingRef.current = false;
       });
-  }, [track, parsedAnswers, router, locale]);
+  }, [track, parsedAnswers, router, locale, copy.generateError]);
 
   if (error) {
     return (
@@ -70,10 +89,10 @@ function SuccessContent() {
               <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
+          <h1 className="text-2xl font-bold mb-2">{t.common.error}</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
           <Link href={localizeHref("/quiz", locale)}>
-            <Button size="lg" className="w-full">Retake Quiz</Button>
+            <Button size="lg" className="w-full">{copy.retakeQuiz}</Button>
           </Link>
         </div>
       </div>
@@ -87,9 +106,9 @@ function SuccessContent() {
           <div className="absolute inset-0 rounded-full border-4 border-muted" />
           <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
         </div>
-        <h1 className="text-2xl font-bold mb-2">Building your plan...</h1>
+        <h1 className="text-2xl font-bold mb-2">{copy.buildingTitle}</h1>
         <p className="text-muted-foreground">
-          Setting up your personalized 7-day activity plan.
+          {copy.buildingSubtitle}
         </p>
       </div>
     </div>
@@ -97,11 +116,12 @@ function SuccessContent() {
 }
 
 export default function CheckoutSuccessPage() {
+  const t = useT();
   return (
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
+          <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
         </div>
       }
     >

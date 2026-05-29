@@ -5,18 +5,116 @@ import {
   getTodayDayNumber,
   parseWeeklyPlan,
   getQuizTagProfile,
+  localizePlan,
 } from "@/lib/dashboard/helpers";
 import { buildDailyToolkit } from "@/lib/engine/daily-toolkit";
 import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
-import { PARENT_GROWTH_PATH, getSkillByDay } from "@/data/parent-growth-path";
+import { getGrowthPath, getSkillByDay } from "@/data/parent-growth-path";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { localizeHref } from "@/lib/i18n/href";
-import type { Locale } from "@/lib/i18n/config";
+import { resolveLocale, type Locale } from "@/lib/i18n/config";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Your 7-Day Parent Growth Path — TinyPlan" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = resolveLocale(lang);
+  return {
+    title:
+      locale === "es"
+        ? "Tu camino de 7 días — TinyPlan"
+        : "Your 7-Day Parent Growth Path — TinyPlan",
+  };
+}
 
-const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_NAMES: Record<Locale, string[]> = {
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  es: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+};
+
+const COPY = {
+  es: {
+    noPlanTitle: "Aún no tienes un plan",
+    noPlanDesc: "Completa el test para obtener tu plan personalizado de 7 días.",
+    startQuiz: "Empezar el test",
+    heroTitle: "Tu camino de crecimiento de 7 días",
+    heroSubtitle:
+      "Siete días, siete habilidades para madres y padres — cada una pensada para un momento que tu familia vive de verdad.",
+    builtFor: "Creado para",
+    age: "Edad",
+    thisWeekPractice: "Esta semana practicarás",
+    moreSuffix: "más",
+    daysPractised: (n: number) => `${n}/7 días practicados`,
+    buildingSomething: " — estás construyendo algo real",
+    youDidIt: " — lo lograste",
+    dayByDay: "Día por día",
+    day: "Día",
+    today: "Hoy",
+    done: "Listo",
+    go: "Ir",
+    playMomentLabel: "Momento de juego",
+    energy: "energía",
+    backupLabel: "Plan B",
+    tinyWinLabel: "Pequeña victoria",
+    whyThisWeek: "Por qué la semana está armada así",
+    youToldUs: "Nos contaste",
+    upcomingFocus: "Próximo enfoque",
+    // buildWhyThisWeek
+    pieceHard: (pain: string) => `Nos contaste que ${pain} puede ser difícil`,
+    pieceGoal: (goal: string) => `tu objetivo es ${goal}`,
+    fallbackOpening: "Tus respuestas del test dieron forma a este plan",
+    whyBody: (painLower: string | null) =>
+      `Por eso los primeros dos días construyen previsibilidad — el sistema nervioso de tu peque necesita saber qué viene antes de que la cooperación se vuelva más fácil. ` +
+      `Los días 3 y 4 suman el momento de juego práctico para anclar la rutina a algo positivo. ` +
+      `Los días 5 y 6 te dan herramientas para los momentos difíciles: qué decir, qué hacer cuando ${painLower ?? "las cosas se ponen difíciles"}, y un plan B si tu primer intento no funciona. ` +
+      `El día 7 es tuyo — nota qué funcionó, repara lo que se sintió desordenado y lleva una cosa contigo.`,
+    whyClosing: (moment: string, styleLower: string) =>
+      ` Las actividades están adaptadas a ${moment} y a un ${styleLower} — porque eso es lo que dijiste que funciona para tu familia.`,
+  },
+  en: {
+    noPlanTitle: "No plan yet",
+    noPlanDesc: "Complete the quiz to get your personalised 7-day plan.",
+    startQuiz: "Start the Quiz",
+    heroTitle: "Your 7-Day Parent Growth Path",
+    heroSubtitle:
+      "Seven days, seven parent skills — each one built for a moment your family actually lives in.",
+    builtFor: "Built for",
+    age: "Age",
+    thisWeekPractice: "This week you'll practice",
+    moreSuffix: "more",
+    daysPractised: (n: number) => `${n}/7 days practised`,
+    buildingSomething: " — you're building something real",
+    youDidIt: " — you did it",
+    dayByDay: "Day by day",
+    day: "Day",
+    today: "Today",
+    done: "Done",
+    go: "Go",
+    playMomentLabel: "Play moment",
+    energy: "energy",
+    backupLabel: "Backup",
+    tinyWinLabel: "Tiny win",
+    whyThisWeek: "Why this week is built this way",
+    youToldUs: "You told us",
+    upcomingFocus: "Upcoming focus",
+    pieceHard: (pain: string) => `You told us ${pain} can be hard`,
+    pieceGoal: (goal: string) => `your goal is ${goal}`,
+    fallbackOpening: "Your quiz answers shaped this plan",
+    whyBody: (painLower: string | null) =>
+      `That's why the first two days build predictability — your child's nervous system needs to know what's coming before cooperation gets easier. ` +
+      `Days 3–4 add the hands-on play moment so there's something positive to anchor the routine to. ` +
+      `Days 5–6 give you tools for the hard bits: what to say, what to do when ${painLower ?? "things get hard"}, and a backup if your first move doesn't land. ` +
+      `Day 7 is yours — notice what worked, repair anything that felt messy, and carry one thing forward.`,
+    whyClosing: (moment: string, styleLower: string) =>
+      ` Activities are matched to ${moment} and a ${styleLower} — because that's what you said works for your family.`,
+  },
+} as const;
+
+type WeekCopy = (typeof COPY)[Locale];
 
 const ACCENT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   play: { bg: "bg-primary-light", text: "text-primary", border: "border-primary/20" },
@@ -29,6 +127,7 @@ const ACCENT_COLORS: Record<string, { bg: string; text: string; border: string }
 function BuiltForChips({
   weeklyPlan,
   ageRange,
+  copy,
 }: {
   weeklyPlan: {
     profileDisplayName: string;
@@ -38,12 +137,13 @@ function BuiltForChips({
     planStyleDisplay: string;
   };
   ageRange?: string | null;
+  copy: WeekCopy;
 }) {
   const chips: { label: string; icon: string }[] = [];
 
   if (ageRange) {
     const num = parseInt(ageRange, 10);
-    if (!Number.isNaN(num)) chips.push({ label: `Age ${num}`, icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" });
+    if (!Number.isNaN(num)) chips.push({ label: `${copy.age} ${num}`, icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" });
   }
   if (weeklyPlan.profileDisplayName) chips.push({ label: weeklyPlan.profileDisplayName, icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" });
   if (weeklyPlan.hardMomentDisplay) chips.push({ label: weeklyPlan.hardMomentDisplay, icon: "M13 10V3L4 14h7v7l9-11h-7z" });
@@ -68,8 +168,9 @@ function BuiltForChips({
   );
 }
 
-function WeekSkillChips() {
-  const weekSkills = PARENT_GROWTH_PATH.slice(0, 4);
+function WeekSkillChips({ locale, copy }: { locale: Locale; copy: WeekCopy }) {
+  const growthPath = getGrowthPath(locale);
+  const weekSkills = growthPath.slice(0, 4);
   return (
     <div className="flex flex-wrap gap-2">
       {weekSkills.map((skill) => {
@@ -86,9 +187,9 @@ function WeekSkillChips() {
           </span>
         );
       })}
-      {PARENT_GROWTH_PATH.length > 4 && (
+      {growthPath.length > 4 && (
         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-          +{PARENT_GROWTH_PATH.length - 4} more
+          +{growthPath.length - 4} {copy.moreSuffix}
         </span>
       )}
     </div>
@@ -121,33 +222,32 @@ function DayProgressDot({ status, isToday }: { status?: string | null; isToday: 
   );
 }
 
-function buildWhyThisWeek(weeklyPlan: {
-  goalDisplayText: string;
-  hardMomentDisplay?: string | null;
-  bestMomentDisplay: string;
-  planStyleDisplay: string;
-  profileDisplayName: string;
-}): string {
+function buildWhyThisWeek(
+  weeklyPlan: {
+    goalDisplayText: string;
+    hardMomentDisplay?: string | null;
+    bestMomentDisplay: string;
+    planStyleDisplay: string;
+    profileDisplayName: string;
+  },
+  copy: WeekCopy,
+): string {
   const goal = weeklyPlan.goalDisplayText;
   const pain = weeklyPlan.hardMomentDisplay;
   const moment = weeklyPlan.bestMomentDisplay;
   const style = weeklyPlan.planStyleDisplay;
 
   const parts: string[] = [];
-  if (pain) parts.push(`You told us ${pain.toLowerCase()} can be hard`);
-  if (goal) parts.push(`your goal is ${goal.toLowerCase()}`);
-  if (!parts.length) parts.push("Your quiz answers shaped this plan");
+  if (pain) parts.push(copy.pieceHard(pain.toLowerCase()));
+  if (goal) parts.push(copy.pieceGoal(goal.toLowerCase()));
+  if (!parts.length) parts.push(copy.fallbackOpening);
 
   const opening = parts.join(", ") + ". ";
 
-  const body =
-    `That's why the first two days build predictability — your child's nervous system needs to know what's coming before cooperation gets easier. ` +
-    `Days 3–4 add the hands-on play moment so there's something positive to anchor the routine to. ` +
-    `Days 5–6 give you tools for the hard bits: what to say, what to do when ${pain ? pain.toLowerCase() : "things get hard"}, and a backup if your first move doesn't land. ` +
-    `Day 7 is yours — notice what worked, repair anything that felt messy, and carry one thing forward.`;
+  const body = copy.whyBody(pain ? pain.toLowerCase() : null);
 
   const closing = moment && style
-    ? ` Activities are matched to ${moment} and a ${style.toLowerCase()} — because that's what you said works for your family.`
+    ? copy.whyClosing(moment, style.toLowerCase())
     : "";
 
   return opening + body + closing;
@@ -159,6 +259,9 @@ export default async function WeekPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const locale = resolveLocale(lang);
+  const copy = COPY[locale];
+  const dayNames = DAY_NAMES[locale];
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -172,18 +275,16 @@ export default async function WeekPage({
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">No plan yet</h1>
-        <p className="text-muted-foreground mb-6">
-          Complete the quiz to get your personalised 7-day plan.
-        </p>
-        <Link href={localizeHref("/quiz", lang as Locale)}>
-          <Button size="lg">Start the Quiz</Button>
+        <h1 className="text-2xl font-bold mb-2">{copy.noPlanTitle}</h1>
+        <p className="text-muted-foreground mb-6">{copy.noPlanDesc}</p>
+        <Link href={localizeHref("/quiz", locale)}>
+          <Button size="lg">{copy.startQuiz}</Button>
         </Link>
       </div>
     );
   }
 
-  const weeklyPlan = parseWeeklyPlan(plan.plan_json);
+  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
   const dayLogs = getDayLogs(plan.id);
   const todayDayNumber = getTodayDayNumber(plan.created_at!);
   const logMap = new Map(dayLogs.map((l) => [l.day_number, l.status]));
@@ -210,10 +311,10 @@ export default async function WeekPage({
   );
 
   const ageRange = tagProfile?.age_range ?? null;
-  const whyThisWeek = buildWhyThisWeek(weeklyPlan);
+  const whyThisWeek = buildWhyThisWeek(weeklyPlan, copy);
 
   const tomorrowDay = weeklyPlan.days.find((d) => d.dayNumber === todayDayNumber + 1);
-  const tomorrowSkill = tomorrowDay ? getSkillByDay(tomorrowDay.dayNumber) : null;
+  const tomorrowSkill = tomorrowDay ? getSkillByDay(tomorrowDay.dayNumber, locale) : null;
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-up space-y-6 pb-8">
@@ -222,27 +323,27 @@ export default async function WeekPage({
       <div>
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Your 7-Day Parent Growth Path
+            {copy.heroTitle}
           </h1>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Seven days, seven parent skills — each one built for a moment your family actually lives in.
+          {copy.heroSubtitle}
         </p>
 
         {/* Built-for chips */}
         <div className="mb-3">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Built for
+            {copy.builtFor}
           </p>
-          <BuiltForChips weeklyPlan={weeklyPlan} ageRange={ageRange} />
+          <BuiltForChips weeklyPlan={weeklyPlan} ageRange={ageRange} copy={copy} />
         </div>
 
         {/* This week you'll practice */}
         <div className="hero-card p-4">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
-            This week you&apos;ll practice
+            {copy.thisWeekPractice}
           </p>
-          <WeekSkillChips />
+          <WeekSkillChips locale={locale} copy={copy} />
         </div>
       </div>
 
@@ -268,15 +369,15 @@ export default async function WeekPage({
           })}
         </div>
         <p className="text-xs text-muted-foreground">
-          {completedCount}/7 days practised
-          {completedCount > 0 && completedCount < 7 && " — you&apos;re building something real"}
-          {completedCount === 7 && " — you did it"}
+          {copy.daysPractised(completedCount)}
+          {completedCount > 0 && completedCount < 7 && copy.buildingSomething}
+          {completedCount === 7 && copy.youDidIt}
         </p>
       </div>
 
       {/* ── Timeline ── */}
       <div>
-        <h2 className="text-base font-bold mb-4">Day by day</h2>
+        <h2 className="text-base font-bold mb-4">{copy.dayByDay}</h2>
         <div className="relative">
           {/* Vertical line */}
           <div className="absolute left-[15px] top-4 bottom-4 w-px bg-border" aria-hidden="true" />
@@ -288,7 +389,7 @@ export default async function WeekPage({
               const isFuture = day.dayNumber > todayDayNumber;
               const status = logMap.get(day.dayNumber);
               const toolkit = dayToolkits.get(day.dayNumber);
-              const growthSkill = getSkillByDay(day.dayNumber);
+              const growthSkill = getSkillByDay(day.dayNumber, locale);
               const colors = growthSkill ? (ACCENT_COLORS[growthSkill.accent] ?? ACCENT_COLORS.play) : ACCENT_COLORS.play;
               const activityDiffersFromPlayMoment =
                 growthSkill &&
@@ -318,19 +419,19 @@ export default async function WeekPage({
                       <div>
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                            Day {day.dayNumber}
+                            {copy.day} {day.dayNumber}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {dayNames[(day.dayNumber - 1) % 7]}
                           </span>
                           {isToday && (
                             <span className="text-[10px] font-semibold text-primary bg-primary-light px-2 py-0.5 rounded-full shadow-xs">
-                              Today
+                              {copy.today}
                             </span>
                           )}
                           {status === "done" && (
                             <span className="text-[10px] font-semibold text-secondary bg-secondary-light px-2 py-0.5 rounded-full shadow-xs">
-                              Done
+                              {copy.done}
                             </span>
                           )}
                         </div>
@@ -344,9 +445,9 @@ export default async function WeekPage({
                       </div>
 
                       {isToday && (
-                        <Link href={localizeHref("/dashboard/today", lang as Locale)} className="shrink-0">
+                        <Link href={localizeHref("/dashboard/today", locale)} className="shrink-0">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary-light px-2.5 py-1 rounded-full shadow-xs">
-                            Go
+                            {copy.go}
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
@@ -362,7 +463,7 @@ export default async function WeekPage({
                           <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Play moment: {growthSkill.playMomentTitle}
+                        {copy.playMomentLabel}: {growthSkill.playMomentTitle}
                       </div>
                     )}
 
@@ -395,7 +496,7 @@ export default async function WeekPage({
                       {day.activity.energy_level && (
                         <>
                           <span>&middot;</span>
-                          <span>{day.activity.energy_level} energy</span>
+                          <span>{day.activity.energy_level} {copy.energy}</span>
                         </>
                       )}
                     </div>
@@ -419,7 +520,7 @@ export default async function WeekPage({
                           <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                           </svg>
-                          Backup: {toolkit.backup.title}
+                          {copy.backupLabel}: {toolkit.backup.title}
                         </span>
                       </div>
                     )}
@@ -430,7 +531,7 @@ export default async function WeekPage({
                         <svg className="w-3.5 h-3.5 text-secondary shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                         </svg>
-                        <span>Tiny win: {growthSkill.tinyWin}</span>
+                        <span>{copy.tinyWinLabel}: {growthSkill.tinyWin}</span>
                       </div>
                     )}
                   </div>
@@ -449,7 +550,7 @@ export default async function WeekPage({
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-sm font-bold">Why this week is built this way</h2>
+          <h2 className="text-sm font-bold">{copy.whyThisWeek}</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
           {whyThisWeek}
@@ -457,7 +558,7 @@ export default async function WeekPage({
         {weeklyPlan.quizSummary && weeklyPlan.quizSummary.youToldUs.length > 0 && (
           <div className="mt-4 space-y-1">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              You told us
+              {copy.youToldUs}
             </p>
             {weeklyPlan.quizSummary.youToldUs.map((item, i) => (
               <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -475,7 +576,7 @@ export default async function WeekPage({
       {tomorrowDay && tomorrowSkill && (
         <div className="bg-gradient-to-br from-primary-light/80 to-primary-light/30 border border-primary/10 rounded-2xl p-5 shadow-card">
           <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-3">
-            Upcoming focus — Day {tomorrowDay.dayNumber}
+            {copy.upcomingFocus} — {copy.day} {tomorrowDay.dayNumber}
           </p>
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -485,7 +586,7 @@ export default async function WeekPage({
             </div>
             <div>
               <p className="text-sm font-bold text-primary mb-0.5">{tomorrowSkill.title}</p>
-              <p className="text-xs text-primary/70 mb-2">Play moment: {tomorrowSkill.playMomentTitle}</p>
+              <p className="text-xs text-primary/70 mb-2">{copy.playMomentLabel}: {tomorrowSkill.playMomentTitle}</p>
               <p className="text-xs text-muted-foreground leading-relaxed">{tomorrowSkill.whenToUse}</p>
             </div>
           </div>

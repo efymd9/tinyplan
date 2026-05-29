@@ -5,12 +5,13 @@ import {
   getTodayDayNumber,
   parseWeeklyPlan,
   getQuizTagProfile,
+  localizePlan,
 } from "@/lib/dashboard/helpers";
 import { generateAdaptiveInsight, getEarlySignalLevel } from "@/lib/personalization/personalize";
 import { buildDailyToolkit } from "@/lib/engine/daily-toolkit";
 import type { ToolkitContext } from "@/lib/engine/daily-toolkit";
 import { PARENT_SKILL_LABELS } from "@/data/parent-tools";
-import { PARENT_GROWTH_PATH } from "@/data/parent-growth-path";
+import { getGrowthPath } from "@/data/parent-growth-path";
 import { SpotIcon } from "@/components/illustrations/activity-illustrations";
 import Image from "next/image";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -20,14 +21,240 @@ import { EmptyStateCard } from "@/components/ui/empty-state-card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { localizeHref } from "@/lib/i18n/href";
-import type { Locale } from "@/lib/i18n/config";
+import { resolveLocale, type Locale } from "@/lib/i18n/config";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Progress — TinyPlan" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = resolveLocale(lang);
+  return { title: locale === "es" ? "Progreso — TinyPlan" : "Progress — TinyPlan" };
+}
 
-function tinyWinMoment(activityTitle: string, status: string): string {
-  if (status === "done") return `You showed up for "${activityTitle}" — and it landed.`;
-  if (status === "too_easy") return `"${activityTitle}" came easily. Ready for more.`;
-  return `"${activityTitle}" — logged and learned from.`;
+const COPY = {
+  es: {
+    noProgressTitle: "Aún no hay progreso",
+    noProgressDesc: "Empieza tu plan para ver cómo van las cosas aquí.",
+    startQuiz: "Empezar el test",
+    heroTitle: "Progreso",
+    heroEmpty: "El sistema está listo — tu primera actividad lo desbloquea todo.",
+    heroMid: "Cada check-in le enseña a TinyPlan más sobre lo que funciona para tu familia.",
+    heroDone: "Siete momentos registrados. Ahora el sistema conoce el ritmo de tu familia.",
+    momentsLogged: "Momentos registrados",
+    rhythmStreak: "Racha de ritmo",
+    skillsPracticed: "Habilidades practicadas",
+    thisWeek: "Esta semana",
+    thisWeekShort: (n: number) => `${n}/7 esta semana`,
+    parentSkillsTitle: "Habilidades practicadas esta semana",
+    ofLabel: (a: number, b: number) => `${a} de ${b}`,
+    parentSkillsIntroHas:
+      "Cada actividad va con una habilidad de crianza. Estas son las que has estado desarrollando.",
+    parentSkillsIntroNone:
+      "Cada actividad de tu plan viene con una habilidad de crianza. Se desbloquean a medida que registras tus check-ins.",
+    timesPracticed: (n: number) => `${n}× practicada`,
+    upcoming: "próxima",
+    inYourPlan: "en tu plan",
+    skillsEmptyMsg: "Completa tu primera actividad para empezar a registrar las habilidades que practicas.",
+    skillsEmptySub: "Las habilidades de crianza crecen en silencio, un momento a la vez.",
+    strongestTitle: "Tu habilidad más fuerte esta semana",
+    currentSkillTitle: "Tu habilidad actual",
+    tinyWinRepeat: "Pequeña victoria para repetir",
+    startedBuilding: (s: string) =>
+      `Empezaste a desarrollar ${s}. Sigue registrando para ver crecer el patrón.`,
+    revealSkillMsg: "Registra tu primera actividad para descubrir qué habilidad estás desarrollando.",
+    revealSkillSub: "TinyPlan registra tus habilidades de crianza en silencio — tú solo juega.",
+    nextRecommended: "Siguiente habilidad recomendada",
+    whatWorkedTitle: "Lo que mejor funcionó para tu familia",
+    strongPattern: "Patrón fuerte",
+    pattern: "Patrón",
+    earlySignal: "Señal temprana",
+    weNoticed: "Esta semana notamos",
+    whatWorkedBest: "Lo que mejor funcionó",
+    whatFeltHard: "Lo que se sintió difícil",
+    familyPatternsTitle: "Patrones de tu familia",
+    familyPatternsHas: "Patrones que TinyPlan detectó en tus check-ins esta semana.",
+    familyPatternsNone: "Los patrones aparecen después de unos pocos check-ins — el sistema está escuchando.",
+    whatsClicking: "Lo que está funcionando",
+    whatsClickingBody: (n: number) =>
+      n === 1
+        ? `1 actividad se sintió bien — ese es el ritmo sobre el que construimos.`
+        : `${n} actividades se sintieron bien — ese es el ritmo sobre el que construimos.`,
+    whereToEase: "Dónde aliviar",
+    whereToEaseBody: (n: number) =>
+      n === 1
+        ? `1 actividad se sintió como demasiado. Opciones más cortas y de menos preparación están en camino.`
+        : `${n} actividades se sintieron como demasiado. Opciones más cortas y de menos preparación están en camino.`,
+    skippedMoments: "Momentos saltados",
+    skippedBody: (n: number) =>
+      `${n} saltados — eso también es una señal útil. Los cambiaremos por algo que se ajuste mejor a tu energía.`,
+    readyForMore: "Listo para más",
+    readyForMoreBody: (n: number) =>
+      n === 1
+        ? `1 actividad se sintió demasiado fácil — tu peque está listo para un poco más de desafío.`
+        : `${n} actividades se sintieron demasiado fáciles — tu peque está listo para un poco más de desafío.`,
+    patternsEmptyZero: "Aún no hay patrones — registra la actividad de hoy para empezar.",
+    patternsEmptyMore: (n: number, plural: boolean) =>
+      `${n} check-in${plural ? "s" : ""} más para desbloquear los patrones de tu familia.`,
+    patternsEmptySub: "Cuando detectamos un patrón real, aparece aquí — no antes.",
+    nextAdjustTitle: "Próximo ajuste del plan",
+    nextAdjustDesc: "Qué cambia en tu próximo plan según esta semana.",
+    basedOn: (n: number, plural: boolean) =>
+      `Basado en ${n} check-in${plural ? "s" : ""} — sigue registrando para afinarlo más.`,
+    tinyWinsTitle: "Pequeñas victorias",
+    tinyWinsDesc: "Momentos reales de esta semana — registrados y contados.",
+    tinyWinsEmpty: "Aún no hay victorias registradas — y está bien.",
+    tinyWinsEmptySub: "Tu primera actividad completada se convierte en una pequeña victoria que vale la pena recordar.",
+    weeklyCheckin: "Check-in semanal",
+    weeklyCheckinDesc: "5 preguntas que dan forma al plan de la próxima semana. No hay respuestas correctas, solo honestas.",
+    nextWeekDesc: "Esto es lo que puedes esperar cuando empiece el próximo plan.",
+    learns3: "El sistema aprende a través de 3 cosas",
+    yourQuizAnswers: "Tus respuestas del test",
+    yourDailyFeedback: "Tus comentarios diarios",
+    yourSosQuestions: "Tus preguntas SOS",
+    heroAlt: "Madre o padre y peque construyendo algo juntos, paso a paso",
+    dayWord: "Día",
+    // tiny win moment
+    twDone: (t: string) => `Te presentaste para "${t}" — y funcionó.`,
+    twEasy: (t: string) => `"${t}" salió fácil. Listo para más.`,
+    twOther: (t: string) => `"${t}" — registrado y aprendido.`,
+    // next adjustment
+    adjNone: "Registra cómo va la actividad de hoy y tu próximo plan empezará a ajustarse automáticamente.",
+    adjTooHard: "La próxima semana: actividades más cortas y con menos preparación — te escuchamos.",
+    adjTooEasy: "Tu peque está listo para más. El próximo plan suma una capa de desafío.",
+    adjSkipped: "Opciones más simples para los momentos que se sintieron como demasiado.",
+    adjDone: (style: string) => `Lo que funciona (${style}) se queda en el plan.`,
+    adjLearning: "TinyPlan está aprendiendo qué funciona. Sigue registrando para desbloquear ajustes más fuertes.",
+    // check-in prompts
+    ciBonding: "¿Hubo un momento esta semana en que tu peque pareció más tranquilo o conectado de lo habitual?",
+    ciPhysical: "¿Notaste algún cambio en la energía o el ánimo de tu peque después del juego activo?",
+    ciAny: "¿Hubo un momento esta semana en que tu peque te sorprendió con su forma de jugar?",
+    ciNone: "¿Qué momento se sintió más fácil con tu peque esta semana — aunque fuera pequeño?",
+    ciPrompt2: "¿Qué habilidad de crianza se sintió más natural de probar esta semana?",
+    ciPrompt3: "¿Qué se sintió más manejable para ti como madre o padre?",
+    ciPrompt4: "¿Hubo un momento que no salió según el plan — y qué hiciste en su lugar?",
+    ciPrompt5: "Si pudieras cambiar una cosa pequeña de la rutina de la próxima semana, ¿qué sería?",
+    // next week
+    nwBuilds: "La semana 2 se basa en la semana 1",
+    nwWorking: "La semana 2 se basa en lo que funciona",
+    nwGentler: "La semana 2 toma un enfoque más suave",
+    nwAdjusts: "La semana 2 se ajusta a tu familia",
+    nwWorked: "Las actividades que funcionaron bien se quedan en la mezcla",
+    nwShorter: "Opciones más cortas y de menos preparación para los momentos que se sintieron difíciles",
+    nwFocused: (g: string) => `Sigue centrado en: ${g}`,
+    nwLog: "Registra cómo va el día de hoy para dar forma a la actividad de mañana",
+  },
+  en: {
+    noProgressTitle: "No progress yet",
+    noProgressDesc: "Start your plan to see how things are going here.",
+    startQuiz: "Start the Quiz",
+    heroTitle: "Progress",
+    heroEmpty: "The system is ready — your first activity unlocks everything.",
+    heroMid: "Every check-in teaches TinyPlan more about what works for your family.",
+    heroDone: "Seven moments logged. The system now knows your family's rhythm.",
+    momentsLogged: "Moments logged",
+    rhythmStreak: "Rhythm streak",
+    skillsPracticed: "Skills practiced",
+    thisWeek: "This Week",
+    thisWeekShort: (n: number) => `${n}/7 this week`,
+    parentSkillsTitle: "Parent Skills Practiced This Week",
+    ofLabel: (a: number, b: number) => `${a} of ${b}`,
+    parentSkillsIntroHas:
+      "Each activity pairs with a parent skill. These are the ones you've been building.",
+    parentSkillsIntroNone:
+      "Each activity in your plan comes with a paired parent skill. They unlock as you log check-ins.",
+    timesPracticed: (n: number) => `${n}× practiced`,
+    upcoming: "upcoming",
+    inYourPlan: "in your plan",
+    skillsEmptyMsg: "Complete your first activity to start tracking the skills you practice.",
+    skillsEmptySub: "Parent skills grow quietly in the background — one moment at a time.",
+    strongestTitle: "Your Strongest Skill This Week",
+    currentSkillTitle: "Your Current Skill",
+    tinyWinRepeat: "Tiny win to repeat",
+    startedBuilding: (s: string) =>
+      `You've started building ${s}. Keep logging to see the pattern grow.`,
+    revealSkillMsg: "Log your first activity to reveal which skill you're building.",
+    revealSkillSub: "TinyPlan tracks your parent skills quietly — you just play.",
+    nextRecommended: "Next recommended skill",
+    whatWorkedTitle: "What Worked Best for Your Family",
+    strongPattern: "Strong pattern",
+    pattern: "Pattern",
+    earlySignal: "Early signal",
+    weNoticed: "This week we noticed",
+    whatWorkedBest: "What worked best",
+    whatFeltHard: "What felt hard",
+    familyPatternsTitle: "Family Patterns",
+    familyPatternsHas: "Patterns TinyPlan has spotted from your check-ins this week.",
+    familyPatternsNone: "Patterns appear after a few check-ins — the system is listening.",
+    whatsClicking: "What's clicking",
+    whatsClickingBody: (n: number) =>
+      `${n} ${n === 1 ? "activity" : "activities"} felt right — that's the rhythm we build on.`,
+    whereToEase: "Where to ease up",
+    whereToEaseBody: (n: number) =>
+      `${n} ${n === 1 ? "activity" : "activities"} felt like too much. Shorter, lower-prep options are on the way.`,
+    skippedMoments: "Skipped moments",
+    skippedBody: (n: number) =>
+      `${n} skipped — that's useful signal too. We'll swap those for something that fits your energy better.`,
+    readyForMore: "Ready for more",
+    readyForMoreBody: (n: number) =>
+      `${n} ${n === 1 ? "activity" : "activities"} felt too easy — your child is ready for a bit more challenge.`,
+    patternsEmptyZero: "No patterns yet — log today's activity to get started.",
+    patternsEmptyMore: (n: number, plural: boolean) =>
+      `${n} more check-in${plural ? "s" : ""} to unlock family patterns.`,
+    patternsEmptySub: "Once we spot a real pattern, it shows up here — not before.",
+    nextAdjustTitle: "Next Plan Adjustment",
+    nextAdjustDesc: "What changes in your next plan based on this week.",
+    basedOn: (n: number, plural: boolean) =>
+      `Based on ${n} check-in${plural ? "s" : ""} — keep logging to refine further.`,
+    tinyWinsTitle: "Tiny Wins",
+    tinyWinsDesc: "Real moments this week — logged and counted.",
+    tinyWinsEmpty: "No wins logged yet — and that's fine.",
+    tinyWinsEmptySub: "Your first completed activity becomes a tiny win worth remembering.",
+    weeklyCheckin: "Weekly Check-In",
+    weeklyCheckinDesc: "5 questions that shape next week's plan. No right answers — just honest ones.",
+    nextWeekDesc: "Here's what to expect when the next plan starts.",
+    learns3: "The system learns through 3 things",
+    yourQuizAnswers: "Your quiz answers",
+    yourDailyFeedback: "Your daily feedback",
+    yourSosQuestions: "Your SOS questions",
+    heroAlt: "Parent and child building something together, step by step",
+    dayWord: "Day",
+    twDone: (t: string) => `You showed up for "${t}" — and it landed.`,
+    twEasy: (t: string) => `"${t}" came easily. Ready for more.`,
+    twOther: (t: string) => `"${t}" — logged and learned from.`,
+    adjNone: "Log how today's activity goes and your next plan will start adjusting automatically.",
+    adjTooHard: "Shorter, lower-prep activities next week — we heard you.",
+    adjTooEasy: "Your child is ready for more. The next plan adds a layer of challenge.",
+    adjSkipped: "Simpler options for the moments that felt like too much.",
+    adjDone: (style: string) => `What's working (${style}) stays in the plan.`,
+    adjLearning: "TinyPlan is learning what works. Keep logging to unlock stronger adjustments.",
+    ciBonding: "Was there a moment this week when your child seemed more settled or connected than usual?",
+    ciPhysical: "Did you notice any change in your child's energy or mood after active play?",
+    ciAny: "Was there a moment this week when your child surprised you with how they played?",
+    ciNone: "What moment felt easiest with your child this week — even a small one?",
+    ciPrompt2: "Which parent skill felt most natural to try this week?",
+    ciPrompt3: "What felt most manageable for you as a parent?",
+    ciPrompt4: "Was there a moment that didn't go to plan — and what did you do instead?",
+    ciPrompt5: "If you could change one small thing about next week's routine, what would it be?",
+    nwBuilds: "Week 2 builds on Week 1",
+    nwWorking: "Week 2 builds on what's working",
+    nwGentler: "Week 2 takes a gentler approach",
+    nwAdjusts: "Week 2 adjusts to your family",
+    nwWorked: "Activities that worked well stay in the mix",
+    nwShorter: "Shorter, lower-prep options for the moments that felt hard",
+    nwFocused: (g: string) => `Still focused on: ${g}`,
+    nwLog: "Log how today goes to shape tomorrow's activity",
+  },
+} as const;
+
+type ProgressCopy = (typeof COPY)[Locale];
+
+function tinyWinMoment(activityTitle: string, status: string, copy: ProgressCopy): string {
+  if (status === "done") return copy.twDone(activityTitle);
+  if (status === "too_easy") return copy.twEasy(activityTitle);
+  return copy.twOther(activityTitle);
 }
 
 export default async function ProgressPage({
@@ -36,6 +263,8 @@ export default async function ProgressPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const locale = resolveLocale(lang);
+  const copy = COPY[locale];
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -49,14 +278,14 @@ export default async function ProgressPage({
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">No progress yet</h1>
-        <p className="text-muted-foreground mb-6">Start your plan to see how things are going here.</p>
-        <Link href={localizeHref("/quiz", lang as Locale)}><Button size="lg">Start the Quiz</Button></Link>
+        <h1 className="text-2xl font-bold mb-2">{copy.noProgressTitle}</h1>
+        <p className="text-muted-foreground mb-6">{copy.noProgressDesc}</p>
+        <Link href={localizeHref("/quiz", locale)}><Button size="lg">{copy.startQuiz}</Button></Link>
       </div>
     );
   }
 
-  const weeklyPlan = parseWeeklyPlan(plan.plan_json);
+  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
   const dayLogs = getDayLogs(plan.id);
   const todayDayNumber = getTodayDayNumber(plan.created_at!);
 
@@ -72,7 +301,10 @@ export default async function ProgressPage({
   }
 
   const logMap = new Map(dayLogs.map((l) => [l.day_number, l.status]));
-  const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
+  const dayLabels = locale === "es"
+    ? ["L", "M", "M", "J", "V", "S", "D"]
+    : ["M", "T", "W", "T", "F", "S", "S"];
+  const growthPath = getGrowthPath(locale);
 
   // Feedback counts
   const feedbackCounts: Record<string, number> = {};
@@ -143,15 +375,15 @@ export default async function ProgressPage({
     (best, s) => s.practiced > best.practiced ? s : best,
     displayParentSkills[0]
   );
-  const strongestGrowthSkill = PARENT_GROWTH_PATH.find((gs) =>
+  const strongestGrowthSkill = growthPath.find((gs) =>
     gs.id.replace(/-/g, "_") === strongestSkill.key ||
     gs.title.toLowerCase() === strongestSkill.label.toLowerCase()
   );
 
   // Next recommended skill from growth path
-  const nextDaySkill = PARENT_GROWTH_PATH.find((gs) => gs.dayNumber === Math.min(todayDayNumber + 1, 7));
+  const nextDaySkill = growthPath.find((gs) => gs.dayNumber === Math.min(todayDayNumber + 1, 7));
   const recommendedSkill = hasStruggle
-    ? PARENT_GROWTH_PATH.find((gs) => gs.id === "start-smaller") ?? nextDaySkill
+    ? growthPath.find((gs) => gs.id === "start-smaller") ?? nextDaySkill
     : nextDaySkill;
 
   // ── Plan adjustment copy ───────────────────────────────────────────────────
@@ -162,17 +394,17 @@ export default async function ProgressPage({
 
   let nextAdjustmentText: string;
   if (totalFeedback === 0) {
-    nextAdjustmentText = "Log how today's activity goes and your next plan will start adjusting automatically.";
+    nextAdjustmentText = copy.adjNone;
   } else if (tooHardCount > 1) {
-    nextAdjustmentText = "Shorter, lower-prep activities next week — we heard you.";
+    nextAdjustmentText = copy.adjTooHard;
   } else if (tooEasyCount > 0) {
-    nextAdjustmentText = "Your child is ready for more. The next plan adds a layer of challenge.";
+    nextAdjustmentText = copy.adjTooEasy;
   } else if (skippedCount > 1) {
-    nextAdjustmentText = "Simpler options for the moments that felt like too much.";
+    nextAdjustmentText = copy.adjSkipped;
   } else if (doneCount >= 4) {
-    nextAdjustmentText = `What's working (${weeklyPlan.planStyleDisplay}) stays in the plan.`;
+    nextAdjustmentText = copy.adjDone(weeklyPlan.planStyleDisplay);
   } else {
-    nextAdjustmentText = "TinyPlan is learning what works. Keep logging to unlock stronger adjustments.";
+    nextAdjustmentText = copy.adjLearning;
   }
 
   // ── Tiny Wins (completed activities as real moments) ──────────────────────
@@ -181,12 +413,13 @@ export default async function ProgressPage({
     .sort((a, b) => (b.day_number ?? 0) - (a.day_number ?? 0))
     .map((log) => {
       const day = weeklyPlan.days.find((d) => d.dayNumber === log.day_number);
+      const titleFallback = day?.activity.title ?? `${copy.dayWord} ${log.day_number}`;
       return {
         id: log.id,
         dayNumber: log.day_number,
-        title: day?.activity.title ?? `Day ${log.day_number}`,
+        title: titleFallback,
         status: log.status!,
-        moment: tinyWinMoment(day?.activity.title ?? `Day ${log.day_number}`, log.status!),
+        moment: tinyWinMoment(titleFallback, log.status!, copy),
       };
     });
 
@@ -201,37 +434,37 @@ export default async function ProgressPage({
 
   let firstCheckInQ: string;
   if (completedCats.includes("bonding") || completedCats.includes("emotional")) {
-    firstCheckInQ = "Was there a moment this week when your child seemed more settled or connected than usual?";
+    firstCheckInQ = copy.ciBonding;
   } else if (completedCats.includes("physical") || completedCats.includes("outdoor")) {
-    firstCheckInQ = "Did you notice any change in your child's energy or mood after active play?";
+    firstCheckInQ = copy.ciPhysical;
   } else if (completedActivities.length > 0) {
-    firstCheckInQ = "Was there a moment this week when your child surprised you with how they played?";
+    firstCheckInQ = copy.ciAny;
   } else {
-    firstCheckInQ = "What moment felt easiest with your child this week — even a small one?";
+    firstCheckInQ = copy.ciNone;
   }
 
   const checkInPrompts: string[] = [
     firstCheckInQ,
-    "Which parent skill felt most natural to try this week?",
-    "What felt most manageable for you as a parent?",
-    "Was there a moment that didn't go to plan — and what did you do instead?",
-    "If you could change one small thing about next week's routine, what would it be?",
+    copy.ciPrompt2,
+    copy.ciPrompt3,
+    copy.ciPrompt4,
+    copy.ciPrompt5,
   ];
 
   // ── Next Week ─────────────────────────────────────────────────────────────
   const nextPositive = doneCount + (feedbackCounts["loved_it"] ?? 0);
   const nextNegative = tooHardCount + skippedCount;
-  let nextWeekHeadline = "Week 2 builds on Week 1";
+  let nextWeekHeadline: string = copy.nwBuilds;
   if (totalFeedback > 0) {
-    if (nextPositive > nextNegative) nextWeekHeadline = "Week 2 builds on what's working";
-    else if (nextNegative > nextPositive) nextWeekHeadline = "Week 2 takes a gentler approach";
-    else nextWeekHeadline = "Week 2 adjusts to your family";
+    if (nextPositive > nextNegative) nextWeekHeadline = copy.nwWorking;
+    else if (nextNegative > nextPositive) nextWeekHeadline = copy.nwGentler;
+    else nextWeekHeadline = copy.nwAdjusts;
   }
   const nextWeekDetails: string[] = [];
-  if (nextPositive > 0) nextWeekDetails.push("Activities that worked well stay in the mix");
-  if (nextNegative > 0) nextWeekDetails.push("Shorter, lower-prep options for the moments that felt hard");
-  nextWeekDetails.push(`Still focused on: ${weeklyPlan.goalDisplayText}`);
-  if (nextWeekDetails.length < 2) nextWeekDetails.push("Log how today goes to shape tomorrow's activity");
+  if (nextPositive > 0) nextWeekDetails.push(copy.nwWorked);
+  if (nextNegative > 0) nextWeekDetails.push(copy.nwShorter);
+  nextWeekDetails.push(copy.nwFocused(weeklyPlan.goalDisplayText));
+  if (nextWeekDetails.length < 2) nextWeekDetails.push(copy.nwLog);
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-up">
@@ -241,21 +474,21 @@ export default async function ProgressPage({
         <div className="rounded-2xl overflow-hidden mb-4 bg-gradient-to-b from-secondary-light/30 to-transparent">
           <Image
             src="/images/illustrations/tinyplan-progress-steps.png"
-            alt="Parent and child building something together, step by step"
+            alt={copy.heroAlt}
             width={1448}
             height={1086}
             className="w-full max-w-xs mx-auto h-auto"
           />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-          Progress
+          {copy.heroTitle}
         </h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
           {completedCount === 0
-            ? "The system is ready — your first activity unlocks everything."
+            ? copy.heroEmpty
             : completedCount < totalDays
-            ? "Every check-in teaches TinyPlan more about what works for your family."
-            : "Seven moments logged. The system now knows your family's rhythm."}
+            ? copy.heroMid
+            : copy.heroDone}
         </p>
       </div>
 
@@ -268,7 +501,7 @@ export default async function ProgressPage({
             </svg>
           </div>
           <div className="text-2xl font-extrabold text-primary">{completedCount}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Moments logged</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{copy.momentsLogged}</div>
         </div>
         <div className="premium-card rounded-2xl p-4 text-center">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary-light to-secondary-light/50 flex items-center justify-center mx-auto mb-2 shadow-xs">
@@ -277,7 +510,7 @@ export default async function ProgressPage({
             </svg>
           </div>
           <div className="text-2xl font-extrabold text-secondary">{rhythmDays}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Rhythm streak</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{copy.rhythmStreak}</div>
         </div>
         <div className="premium-card rounded-2xl p-4 text-center">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-light to-accent-light/50 flex items-center justify-center mx-auto mb-2 shadow-xs">
@@ -286,14 +519,14 @@ export default async function ProgressPage({
             </svg>
           </div>
           <div className="text-2xl font-extrabold text-accent-dark">{parentSkillsPracticed}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Skills practiced</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{copy.skillsPracticed}</div>
         </div>
       </div>
 
       {/* ── Weekly tracker ──────────────────────────────────────────────────── */}
       <div className="hero-card p-6 mb-6">
-        <h2 className="text-sm font-semibold mb-4">This Week</h2>
-        <ProgressBar current={completedCount} total={totalDays} stageLabel={`${completedCount}/7 this week`} />
+        <h2 className="text-sm font-semibold mb-4">{copy.thisWeek}</h2>
+        <ProgressBar current={completedCount} total={totalDays} stageLabel={copy.thisWeekShort(completedCount)} />
         <div className="flex justify-between mt-6">
           {weeklyPlan.days.map((day) => {
             const status = logMap.get(day.dayNumber);
@@ -328,17 +561,17 @@ export default async function ProgressPage({
       {/* ── Parent Skills Practiced This Week ──────────────────────────────── */}
       <div className="premium-card rounded-2xl p-6 mb-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold">Parent Skills Practiced This Week</h2>
+          <h2 className="text-sm font-semibold">{copy.parentSkillsTitle}</h2>
           {parentSkillsPracticed > 0 && (
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary-light text-secondary">
-              {parentSkillsPracticed} of {displayParentSkills.length}
+              {copy.ofLabel(parentSkillsPracticed, displayParentSkills.length)}
             </span>
           )}
         </div>
         <p className="text-xs text-muted-foreground mb-4">
           {parentSkills.length > 0
-            ? "Each activity pairs with a parent skill. These are the ones you've been building."
-            : "Each activity in your plan comes with a paired parent skill. They unlock as you log check-ins."}
+            ? copy.parentSkillsIntroHas
+            : copy.parentSkillsIntroNone}
         </p>
         <div className="space-y-3 mb-4">
           {displayParentSkills.map(({ key, label, practiced }) => (
@@ -349,16 +582,16 @@ export default async function ProgressPage({
               </div>
               <span className="text-xs font-medium ml-3 shrink-0 text-muted-foreground">
                 {practiced > 0
-                  ? `${practiced}× practiced`
-                  : parentSkills.length > 0 ? "upcoming" : "in your plan"}
+                  ? copy.timesPracticed(practiced)
+                  : parentSkills.length > 0 ? copy.upcoming : copy.inYourPlan}
               </span>
             </div>
           ))}
         </div>
         {completedCount === 0 && (
           <EmptyStateCard
-            message="Complete your first activity to start tracking the skills you practice."
-            subMessage="Parent skills grow quietly in the background — one moment at a time."
+            message={copy.skillsEmptyMsg}
+            subMessage={copy.skillsEmptySub}
           />
         )}
       </div>
@@ -368,7 +601,7 @@ export default async function ProgressPage({
         <div className="flex items-center gap-2 mb-4">
           <SpotIcon type="insight" className="w-7 h-7" />
           <h2 className="text-lg font-bold">
-            {parentSkillsPracticed > 0 ? "Your Strongest Skill This Week" : "Your Current Skill"}
+            {parentSkillsPracticed > 0 ? copy.strongestTitle : copy.currentSkillTitle}
           </h2>
         </div>
 
@@ -378,18 +611,18 @@ export default async function ProgressPage({
               {strongestGrowthSkill.whatYouPractice}
             </InsightCard>
             <div className="bg-muted/40 rounded-xl p-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Tiny win to repeat</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{copy.tinyWinRepeat}</p>
               <p className="text-sm text-muted-foreground leading-relaxed">{strongestGrowthSkill.tinyWin}</p>
             </div>
           </div>
         ) : parentSkillsPracticed > 0 ? (
           <InsightCard accent="secondary" label={strongestSkill.label} confidence="early">
-            You&apos;ve started building {strongestSkill.label.toLowerCase()}. Keep logging to see the pattern grow.
+            {copy.startedBuilding(strongestSkill.label.toLowerCase())}
           </InsightCard>
         ) : (
           <EmptyStateCard
-            message="Log your first activity to reveal which skill you're building."
-            subMessage="TinyPlan tracks your parent skills quietly — you just play."
+            message={copy.revealSkillMsg}
+            subMessage={copy.revealSkillSub}
           />
         )}
 
@@ -397,7 +630,7 @@ export default async function ProgressPage({
         {recommendedSkill && (
           <div className="mt-4 border-t border-border-whisper pt-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Next recommended skill
+              {copy.nextRecommended}
             </p>
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-light to-primary-light/50 flex items-center justify-center shrink-0 mt-0.5">
@@ -417,28 +650,28 @@ export default async function ProgressPage({
       {/* ── What Worked Best for Your Family ──────────────────────────────── */}
       <div className="premium-card rounded-2xl p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold">What Worked Best for Your Family</h2>
+          <h2 className="text-sm font-semibold">{copy.whatWorkedTitle}</h2>
           {hasFeedback && (
             <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
               confidenceLevel === "strong" ? "bg-secondary-light text-secondary" :
               confidenceLevel === "pattern" ? "bg-accent-light text-accent-dark" :
               "bg-muted text-muted-foreground"
             }`}>
-              {confidenceLevel === "strong" ? "Strong pattern" :
-               confidenceLevel === "pattern" ? "Pattern" : "Early signal"}
+              {confidenceLevel === "strong" ? copy.strongPattern :
+               confidenceLevel === "pattern" ? copy.pattern : copy.earlySignal}
             </span>
           )}
         </div>
 
         <div className="space-y-3">
-          <InsightCard accent="primary" label="This week we noticed">
+          <InsightCard accent="primary" label={copy.weNoticed}>
             {insights.noticed}
           </InsightCard>
-          <InsightCard accent="secondary" label="What worked best">
+          <InsightCard accent="secondary" label={copy.whatWorkedBest}>
             {insights.whatWorked}
           </InsightCard>
           {hasFeedback && (
-            <InsightCard accent="accent" label="What felt hard">
+            <InsightCard accent="accent" label={copy.whatFeltHard}>
               {insights.whatFeltHard}
             </InsightCard>
           )}
@@ -447,35 +680,33 @@ export default async function ProgressPage({
 
       {/* ── Family Patterns (data-gated) ─────────────────────────────────── */}
       <div className="premium-card rounded-2xl p-6 mb-6">
-        <h2 className="text-sm font-semibold mb-1">Family Patterns</h2>
+        <h2 className="text-sm font-semibold mb-1">{copy.familyPatternsTitle}</h2>
         <p className="text-xs text-muted-foreground mb-4">
           {hasEnoughForPatterns
-            ? "Patterns TinyPlan has spotted from your check-ins this week."
-            : "Patterns appear after a few check-ins — the system is listening."}
+            ? copy.familyPatternsHas
+            : copy.familyPatternsNone}
         </p>
 
         {hasEnoughForPatterns ? (
           <div className="space-y-3">
             {doneCount > 0 && (
-              <InsightCard accent="secondary" confidence={confidenceLevel} label="What's clicking">
-                {doneCount} {doneCount === 1 ? "activity" : "activities"} felt right — that&apos;s the rhythm we build on.
+              <InsightCard accent="secondary" confidence={confidenceLevel} label={copy.whatsClicking}>
+                {copy.whatsClickingBody(doneCount)}
               </InsightCard>
             )}
             {tooHardCount > 0 && (
-              <InsightCard accent="accent" confidence={confidenceLevel} label="Where to ease up">
-                {tooHardCount} {tooHardCount === 1 ? "activity" : "activities"} felt like too much.
-                Shorter, lower-prep options are on the way.
+              <InsightCard accent="accent" confidence={confidenceLevel} label={copy.whereToEase}>
+                {copy.whereToEaseBody(tooHardCount)}
               </InsightCard>
             )}
             {skippedCount > 0 && (
-              <InsightCard accent="muted" confidence="early" label="Skipped moments">
-                {skippedCount} skipped — that&apos;s useful signal too.
-                We&apos;ll swap those for something that fits your energy better.
+              <InsightCard accent="muted" confidence="early" label={copy.skippedMoments}>
+                {copy.skippedBody(skippedCount)}
               </InsightCard>
             )}
             {tooEasyCount > 0 && (
-              <InsightCard accent="primary" confidence={confidenceLevel} label="Ready for more">
-                {tooEasyCount} {tooEasyCount === 1 ? "activity" : "activities"} felt too easy — your child is ready for a bit more challenge.
+              <InsightCard accent="primary" confidence={confidenceLevel} label={copy.readyForMore}>
+                {copy.readyForMoreBody(tooEasyCount)}
               </InsightCard>
             )}
           </div>
@@ -487,34 +718,34 @@ export default async function ProgressPage({
               </svg>
             }
             message={totalFeedback === 0
-              ? "No patterns yet — log today's activity to get started."
-              : `${3 - totalFeedback} more check-in${3 - totalFeedback === 1 ? "" : "s"} to unlock family patterns.`}
-            subMessage="Once we spot a real pattern, it shows up here — not before."
+              ? copy.patternsEmptyZero
+              : copy.patternsEmptyMore(3 - totalFeedback, 3 - totalFeedback !== 1)}
+            subMessage={copy.patternsEmptySub}
           />
         )}
       </div>
 
       {/* ── Next Plan Adjustment ──────────────────────────────────────────── */}
       <div className="premium-card rounded-2xl p-6 mb-6">
-        <h2 className="text-sm font-semibold mb-1">Next Plan Adjustment</h2>
+        <h2 className="text-sm font-semibold mb-1">{copy.nextAdjustTitle}</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          What changes in your next plan based on this week.
+          {copy.nextAdjustDesc}
         </p>
         <InsightCard accent="primary">
           {nextAdjustmentText}
         </InsightCard>
         {totalFeedback > 0 && (
           <p className="text-xs text-muted-foreground mt-3">
-            Based on {totalFeedback} check-in{totalFeedback === 1 ? "" : "s"} — keep logging to refine further.
+            {copy.basedOn(totalFeedback, totalFeedback !== 1)}
           </p>
         )}
       </div>
 
       {/* ── Tiny Wins ─────────────────────────────────────────────────────── */}
       <div className="premium-card rounded-2xl p-6 mb-6">
-        <h2 className="text-sm font-semibold mb-1">Tiny Wins</h2>
+        <h2 className="text-sm font-semibold mb-1">{copy.tinyWinsTitle}</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Real moments this week — logged and counted.
+          {copy.tinyWinsDesc}
         </p>
 
         {tinyWins.length > 0 ? (
@@ -530,8 +761,8 @@ export default async function ProgressPage({
           </div>
         ) : (
           <EmptyStateCard
-            message="No wins logged yet — and that's fine."
-            subMessage="Your first completed activity becomes a tiny win worth remembering."
+            message={copy.tinyWinsEmpty}
+            subMessage={copy.tinyWinsEmptySub}
           />
         )}
       </div>
@@ -550,9 +781,9 @@ export default async function ProgressPage({
 
       {/* ── Weekly Check-In Prompts ────────────────────────────────────────── */}
       <div className="hero-card p-6 mb-6">
-        <h2 className="text-lg font-bold mb-1">Weekly Check-In</h2>
+        <h2 className="text-lg font-bold mb-1">{copy.weeklyCheckin}</h2>
         <p className="text-sm text-muted-foreground mb-5">
-          5 questions that shape next week&apos;s plan. No right answers — just honest ones.
+          {copy.weeklyCheckinDesc}
         </p>
         <div className="space-y-3">
           {checkInPrompts.map((prompt, i) => (
@@ -572,7 +803,7 @@ export default async function ProgressPage({
       <div className="hero-card p-6 mb-6">
         <h2 className="text-lg font-bold mb-1">{nextWeekHeadline}</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Here&apos;s what to expect when the next plan starts.
+          {copy.nextWeekDesc}
         </p>
         <ul className="space-y-2.5">
           {nextWeekDetails.map((detail, i) => (
@@ -586,7 +817,7 @@ export default async function ProgressPage({
 
       {/* ── How TinyPlan adapts ───────────────────────────────────────────── */}
       <div className="surface-sunken border border-border-whisper rounded-2xl p-5">
-        <p className="text-sm font-semibold text-center mb-4">The system learns through 3 things</p>
+        <p className="text-sm font-semibold text-center mb-4">{copy.learns3}</p>
         <div className="grid grid-cols-3 gap-3">
           <div className="premium-card rounded-xl p-3 text-center shadow-xs">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-light to-primary-light/50 flex items-center justify-center mx-auto mb-2">
@@ -594,7 +825,7 @@ export default async function ProgressPage({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
               </svg>
             </div>
-            <p className="text-xs font-medium">Your quiz answers</p>
+            <p className="text-xs font-medium">{copy.yourQuizAnswers}</p>
           </div>
           <div className="premium-card rounded-xl p-3 text-center shadow-xs">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary-light to-secondary-light/50 flex items-center justify-center mx-auto mb-2">
@@ -602,7 +833,7 @@ export default async function ProgressPage({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
               </svg>
             </div>
-            <p className="text-xs font-medium">Your daily feedback</p>
+            <p className="text-xs font-medium">{copy.yourDailyFeedback}</p>
           </div>
           <div className="premium-card rounded-xl p-3 text-center shadow-xs">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-light to-accent-light/50 flex items-center justify-center mx-auto mb-2">
@@ -610,7 +841,7 @@ export default async function ProgressPage({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
               </svg>
             </div>
-            <p className="text-xs font-medium">Your SOS questions</p>
+            <p className="text-xs font-medium">{copy.yourSosQuestions}</p>
           </div>
         </div>
       </div>

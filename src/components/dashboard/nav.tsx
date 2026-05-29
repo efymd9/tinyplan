@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLocale } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
 const navItems = [
-  { href: "/dashboard/today", label: "Today", icon: "sun" },
-  { href: "/dashboard/week", label: "Week", icon: "calendar" },
-  { href: "/dashboard/sos", label: "SOS", icon: "lifebuoy" },
-  { href: "/dashboard/library", label: "Library", icon: "book" },
-  { href: "/dashboard/progress", label: "Progress", icon: "chart" },
+  { href: "/dashboard/today", key: "today", icon: "sun" },
+  { href: "/dashboard/week", key: "week", icon: "calendar" },
+  { href: "/dashboard/sos", key: "sos", icon: "lifebuoy" },
+  { href: "/dashboard/library", key: "library", icon: "book" },
+  { href: "/dashboard/progress", key: "progress", icon: "chart" },
 ] as const;
 
 const icons: Record<string, string> = {
@@ -45,9 +45,16 @@ interface ProgressInfo {
   dayStatuses: Array<{ day: number; done: boolean }>;
 }
 
+const COPY = {
+  es: { yourWeek: "Tu semana", meaningfulMoments: "momentos significativos" },
+  en: { yourWeek: "Your week", meaningfulMoments: "meaningful moments" },
+} as const;
+
 export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; userEmail?: string }) {
   const pathname = usePathname();
   const locale = useLocale();
+  const t = useT();
+  const copy = COPY[locale];
 
   return (
     <nav className="hidden md:flex flex-col gap-1 w-56 shrink-0 p-5 pt-6 border-r border-border-whisper">
@@ -65,7 +72,7 @@ export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; u
             }`}
           >
             <NavIcon name={item.icon} className={`w-[18px] h-[18px] ${active ? "stroke-[2]" : ""}`} />
-            {item.label}
+            {t.nav[item.key]}
           </Link>
         );
       })}
@@ -73,7 +80,7 @@ export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; u
       {progress && progress.totalDays > 0 && (
         <div className="mt-6 p-4 bg-surface-sunken rounded-2xl border border-border-whisper">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
-            Your week
+            {copy.yourWeek}
           </p>
           <div className="flex gap-1">
             {progress.dayStatuses.map((d) => (
@@ -90,7 +97,7 @@ export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; u
             ))}
           </div>
           <p className="text-[10px] text-muted-foreground mt-2 font-medium">
-            {progress.completedCount}/{progress.totalDays} meaningful moments
+            {progress.completedCount}/{progress.totalDays} {copy.meaningfulMoments}
           </p>
         </div>
       )}
@@ -107,6 +114,7 @@ export function DesktopNav({ progress, userEmail }: { progress?: ProgressInfo; u
 export function MobileNav() {
   const pathname = usePathname();
   const locale = useLocale();
+  const t = useT();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-bar border-t border-border-whisper shadow-sticky">
@@ -126,7 +134,7 @@ export function MobileNav() {
                 <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full bg-primary" />
               )}
               <NavIcon name={item.icon} className={`w-[22px] h-[22px] ${active ? "stroke-[2]" : ""}`} />
-              <span className={`text-[10px] ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
+              <span className={`text-[10px] ${active ? "font-bold" : "font-medium"}`}>{t.nav[item.key]}</span>
             </Link>
           );
         })}

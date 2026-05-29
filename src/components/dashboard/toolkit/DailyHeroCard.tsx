@@ -1,4 +1,20 @@
+"use client";
+
 import type { ParentSkill } from "@/data/parent-growth-path";
+import { useLocale } from "@/components/i18n/locale-provider";
+
+const COPY = {
+  es: {
+    dayOf: (day: number, total: number) => `Día ${day} de ${total}`,
+    parentSkill: "Habilidad para madres y padres",
+    defaultChips: ["1 momento de juego", "1 lección", "3+ frases", "1 plan B", "check-in"],
+  },
+  en: {
+    dayOf: (day: number, total: number) => `Day ${day} of ${total}`,
+    parentSkill: "Parent skill",
+    defaultChips: ["1 play moment", "1 parent lesson", "3+ scripts", "1 backup", "check-in"],
+  },
+} as const;
 
 const ACCENT_CLASSES: Record<string, { bg: string; text: string; badge: string }> = {
   play: {
@@ -37,14 +53,14 @@ interface DailyHeroCardProps {
   chips?: string[];
 }
 
-const DEFAULT_CHIPS = ["1 play moment", "1 parent lesson", "3+ scripts", "1 backup", "check-in"];
-
 export function DailyHeroCard({
   skill,
   totalDays = 7,
   whyThisFits,
   chips,
 }: DailyHeroCardProps) {
+  const locale = useLocale();
+  const copy = COPY[locale];
   const ac = ACCENT_CLASSES[skill.accent] ?? ACCENT_CLASSES.play;
 
   return (
@@ -55,10 +71,10 @@ export function DailyHeroCard({
           className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full ${ac.badge}`}
         >
           <DayIcon />
-          Day {skill.dayNumber} of {totalDays}
+          {copy.dayOf(skill.dayNumber, totalDays)}
         </span>
         <span className="text-xs text-muted-foreground font-medium">
-          Parent skill
+          {copy.parentSkill}
         </span>
       </div>
 
@@ -82,7 +98,7 @@ export function DailyHeroCard({
 
       {/* What's included */}
       <div className="flex flex-wrap gap-2 mt-2">
-        {(chips ?? DEFAULT_CHIPS).map((item) => (
+        {(chips ?? copy.defaultChips).map((item) => (
           <span
             key={item}
             className="text-xs bg-white/70 border border-border-whisper rounded-full px-3 py-0.5 text-foreground/70 font-medium"

@@ -6,11 +6,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/brand-logo";
-import { useLocale } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
+import type { Locale } from "@/lib/i18n/config";
+
+const COPY = {
+  es: {
+    homeAria: "Inicio de TinyPlan",
+    invalidEmail: "Ingresa un correo válido",
+    sentTitle: "Revisa tu correo",
+    sentBodyBefore: "Te enviamos un enlace mágico a ",
+    sentBodyAfter:
+      ". Haz clic en él para iniciar sesión. Vence en 15 minutos.",
+    signInTitle: "Inicia sesión en TinyPlan",
+    signInSubtitle: "Escribe tu correo y te enviamos un enlace mágico.",
+    emailPlaceholder: "tu@correo.com",
+    sendButton: "Enviar enlace mágico",
+    helper: "Sin contraseña. Te enviamos un enlace seguro por correo.",
+  },
+  en: {
+    homeAria: "TinyPlan home",
+    invalidEmail: "Please enter a valid email",
+    sentTitle: "Check your email",
+    sentBodyBefore: "We sent a magic link to ",
+    sentBodyAfter: ". Click it to sign in. It expires in 15 minutes.",
+    signInTitle: "Sign in to TinyPlan",
+    signInSubtitle: "Enter your email and we'll send you a magic link.",
+    emailPlaceholder: "your@email.com",
+    sendButton: "Send magic link",
+    helper: "No password needed. We'll email you a secure link.",
+  },
+} as const satisfies Record<Locale, Record<string, string>>;
 
 export default function LoginPage() {
   const locale = useLocale();
+  const t = useT();
+  const c = COPY[locale];
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,7 +49,7 @@ export default function LoginPage() {
 
   const handleSubmit = async () => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Please enter a valid email");
+      setError(c.invalidEmail);
       return;
     }
     setError("");
@@ -32,10 +63,10 @@ export default function LoginPage() {
       if (res.ok) {
         setSent(true);
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(t.errors.generic);
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t.errors.generic);
     } finally {
       setLoading(false);
     }
@@ -45,7 +76,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-lg mx-auto">
-          <Link href={localizeHref("/", locale)} aria-label="TinyPlan home">
+          <Link href={localizeHref("/", locale)} aria-label={c.homeAria}>
             <BrandLogo width={130} priority />
           </Link>
         </div>
@@ -60,21 +91,22 @@ export default function LoginPage() {
                   <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold mb-2">Check your email</h2>
+              <h2 className="text-xl font-bold mb-2">{c.sentTitle}</h2>
               <p className="text-muted-foreground text-sm">
-                We sent a magic link to <strong>{email}</strong>. Click it to
-                sign in. It expires in 15 minutes.
+                {c.sentBodyBefore}
+                <strong>{email}</strong>
+                {c.sentBodyAfter}
               </p>
             </div>
           ) : (
             <>
-              <h2 className="text-xl font-bold mb-1">Sign in to TinyPlan</h2>
+              <h2 className="text-xl font-bold mb-1">{c.signInTitle}</h2>
               <p className="text-sm text-muted-foreground mb-6">
-                Enter your email and we&apos;ll send you a magic link.
+                {c.signInSubtitle}
               </p>
               <Input
                 type="email"
-                placeholder="your@email.com"
+                placeholder={c.emailPlaceholder}
                 value={email}
                 error={error}
                 onChange={(e) => setEmail(e.target.value)}
@@ -86,10 +118,10 @@ export default function LoginPage() {
                 className="w-full mt-4"
                 size="lg"
               >
-                Send magic link
+                {c.sendButton}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-4">
-                No password needed. We&apos;ll email you a secure link.
+                {c.helper}
               </p>
             </>
           )}

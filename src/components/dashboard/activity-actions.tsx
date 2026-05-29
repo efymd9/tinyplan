@@ -2,15 +2,43 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 type FeedbackStatus = "done" | "too_hard" | "child_refused" | "skipped" | "loved_it";
 
-const feedbackOptions: { status: FeedbackStatus; label: string }[] = [
-  { status: "done", label: "Felt right" },
-  { status: "too_hard", label: "Too hard" },
-  { status: "child_refused", label: "Child refused" },
-  { status: "skipped", label: "We skipped" },
-  { status: "loved_it", label: "Loved it" },
+const COPY = {
+  es: {
+    feedback: {
+      done: "Salió bien",
+      too_hard: "Muy difícil",
+      child_refused: "Se negó",
+      skipped: "Lo saltamos",
+      loved_it: "Le encantó",
+    },
+    noted: "Anotado. Mañana se ajustará.",
+    howWasToday: "¿Cómo te fue hoy?",
+    shapesTomorrow: "Tu respuesta moldea el día de mañana.",
+  },
+  en: {
+    feedback: {
+      done: "Felt right",
+      too_hard: "Too hard",
+      child_refused: "Child refused",
+      skipped: "We skipped",
+      loved_it: "Loved it",
+    },
+    noted: "Noted. Tomorrow will adjust.",
+    howWasToday: "How did today go?",
+    shapesTomorrow: "Your answer shapes tomorrow.",
+  },
+} as const;
+
+const feedbackOrder: FeedbackStatus[] = [
+  "done",
+  "too_hard",
+  "child_refused",
+  "skipped",
+  "loved_it",
 ];
 
 export function ActivityActions({
@@ -25,6 +53,8 @@ export function ActivityActions({
   currentStatus?: string | null;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const copy = COPY[locale];
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(currentStatus ?? null);
 
@@ -58,7 +88,7 @@ export function ActivityActions({
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Noted. Tomorrow will adjust.</p>
+          <p className="text-sm font-semibold">{copy.noted}</p>
         </div>
       </div>
     );
@@ -66,21 +96,21 @@ export function ActivityActions({
 
   return (
     <div>
-      <p className="text-sm font-semibold text-center mb-1">How did today go?</p>
-      <p className="text-xs text-muted-foreground text-center mb-3">Your answer shapes tomorrow.</p>
+      <p className="text-sm font-semibold text-center mb-1">{copy.howWasToday}</p>
+      <p className="text-xs text-muted-foreground text-center mb-3">{copy.shapesTomorrow}</p>
       <div className="flex flex-wrap gap-2 justify-center">
-        {feedbackOptions.map((opt) => (
+        {feedbackOrder.map((optStatus) => (
           <button
-            key={opt.status}
-            onClick={() => logStatus(opt.status)}
+            key={optStatus}
+            onClick={() => logStatus(optStatus)}
             disabled={saving}
             className={`text-sm px-4 py-2.5 rounded-full font-medium disabled:opacity-50 min-h-[44px] transition-all ${
-              opt.status === "done" || opt.status === "loved_it"
+              optStatus === "done" || optStatus === "loved_it"
                 ? "bg-primary text-white hover:bg-primary-hover shadow-button active:scale-[0.97]"
                 : "border border-border-whisper bg-card hover:bg-muted shadow-xs hover:shadow-card active:scale-[0.97]"
             }`}
           >
-            {opt.label}
+            {copy.feedback[optStatus]}
           </button>
         ))}
       </div>

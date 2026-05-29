@@ -1,40 +1,117 @@
 import { getCurrentUser } from "@/lib/auth/magic-link";
-import { getActivePlan, parseWeeklyPlan } from "@/lib/dashboard/helpers";
-import { deriveRoutine } from "@/lib/routines/routines";
+import { getActivePlan, parseWeeklyPlan, localizePlan } from "@/lib/dashboard/helpers";
+import { deriveRoutine, localizeRoutine } from "@/lib/routines/routines";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProfileIllustration, SpotIcon } from "@/components/illustrations/activity-illustrations";
 import { localizeHref } from "@/lib/i18n/href";
-import type { Locale } from "@/lib/i18n/config";
+import { resolveLocale, type Locale } from "@/lib/i18n/config";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Your TinyPlan is Ready" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = resolveLocale(lang);
+  return {
+    title: locale === "es" ? "Tu TinyPlan está listo" : "Your TinyPlan is Ready",
+  };
+}
 
-function deriveFallbackYouToldUs(plan: {
-  goalDisplayText?: string;
-  bestMomentDisplay?: string;
-  planStyleDisplay?: string;
-  hardMomentDisplay?: string;
-}): string[] {
+const COPY = {
+  es: {
+    yourPlanReady: "Tu plan está listo",
+    builtAround: (n: number) =>
+      `Creado a partir de tus respuestas — ${n} días de juego que se adaptan a tu familia.`,
+    builtFromAnswers: "Tu TinyPlan se creó a partir de tus respuestas",
+    youToldUs: "Nos contaste:",
+    soWeCreated: "Así que esta semana creamos:",
+    thisWeekIncludes: "Esta semana incluye",
+    activitiesWithScripts: (n: number) => `${n} actividades con qué decir`,
+    personalisedRoutine: "Una rutina personalizada para tu momento más difícil",
+    sosScripts: "Guiones SOS para berrinches y momentos difíciles",
+    askTinyPlan: "Pregúntale a TinyPlan cuando te atasques",
+    weeklyInsight: "Un informe semanal con ideas",
+    yourRoutine: "Tu rutina esta semana",
+    startDay1: "Empezar el Día 1",
+    viewFullWeek: "Ver la semana completa",
+    // fallback summary builders
+    youToldUsPriority: (g: string) => `${g} es tu prioridad`,
+    youToldUsBestTime: (m: string) => `${m} es tu mejor momento`,
+    youToldUsPrefer: (s: string) => `prefieres ${s}`,
+    youToldUsHardest: (p: string) => `${p} es tu momento más difícil`,
+    soWeCreatedFocus: (g: string) => `actividades centradas en ${g}`,
+    soWeCreatedPlay: (m: string) => `juego diseñado para ${m}`,
+    soWeCreatedHelp: (p: string) => `ayuda para ${p}`,
+    soWeCreatedScripts: "qué decir, listo para usar",
+  },
+  en: {
+    yourPlanReady: "Your plan is ready",
+    builtAround: (n: number) =>
+      `Built around your answers — ${n} days of play that fits your family.`,
+    builtFromAnswers: "Your TinyPlan was built from your answers",
+    youToldUs: "You told us:",
+    soWeCreated: "So this week we created:",
+    thisWeekIncludes: "This week includes",
+    activitiesWithScripts: (n: number) => `${n} activities with parent scripts`,
+    personalisedRoutine: "A personalised routine for your hardest moment",
+    sosScripts: "SOS scripts for meltdowns and tough moments",
+    askTinyPlan: "Ask TinyPlan when you are stuck",
+    weeklyInsight: "A weekly insight report",
+    yourRoutine: "Your Routine This Week",
+    startDay1: "Start Day 1",
+    viewFullWeek: "View full week",
+    youToldUsPriority: (g: string) => `${g} is your priority`,
+    youToldUsBestTime: (m: string) => `${m} is your best time`,
+    youToldUsPrefer: (s: string) => `you prefer ${s}`,
+    youToldUsHardest: (p: string) => `${p} is your hardest moment`,
+    soWeCreatedFocus: (g: string) => `activities focused on ${g}`,
+    soWeCreatedPlay: (m: string) => `play designed for ${m}`,
+    soWeCreatedHelp: (p: string) => `help for ${p}`,
+    soWeCreatedScripts: "ready-to-use parent scripts",
+  },
+} as const;
+
+type RevealCopy = (typeof COPY)[Locale];
+
+function lowerFirst(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+function deriveFallbackYouToldUs(
+  plan: {
+    goalDisplayText?: string;
+    bestMomentDisplay?: string;
+    planStyleDisplay?: string;
+    hardMomentDisplay?: string;
+  },
+  copy: RevealCopy,
+): string[] {
   const items: string[] = [];
-  if (plan.goalDisplayText) items.push(plan.goalDisplayText.charAt(0).toLowerCase() + plan.goalDisplayText.slice(1) + " is your priority");
-  if (plan.bestMomentDisplay) items.push(plan.bestMomentDisplay + " is your best time");
-  if (plan.planStyleDisplay) items.push("you prefer " + plan.planStyleDisplay);
-  if (plan.hardMomentDisplay) items.push(plan.hardMomentDisplay.charAt(0).toLowerCase() + plan.hardMomentDisplay.slice(1) + " is your hardest moment");
+  if (plan.goalDisplayText) items.push(copy.youToldUsPriority(lowerFirst(plan.goalDisplayText)));
+  if (plan.bestMomentDisplay) items.push(copy.youToldUsBestTime(plan.bestMomentDisplay));
+  if (plan.planStyleDisplay) items.push(copy.youToldUsPrefer(plan.planStyleDisplay));
+  if (plan.hardMomentDisplay) items.push(copy.youToldUsHardest(lowerFirst(plan.hardMomentDisplay)));
   return items.slice(0, 4);
 }
 
-function deriveFallbackSoWeCreated(plan: {
-  goalDisplayText?: string;
-  bestMomentDisplay?: string;
-  planStyleDisplay?: string;
-  hardMomentDisplay?: string;
-}): string[] {
+function deriveFallbackSoWeCreated(
+  plan: {
+    goalDisplayText?: string;
+    bestMomentDisplay?: string;
+    planStyleDisplay?: string;
+    hardMomentDisplay?: string;
+  },
+  copy: RevealCopy,
+): string[] {
   const items: string[] = [];
-  if (plan.goalDisplayText) items.push("activities focused on " + plan.goalDisplayText.charAt(0).toLowerCase() + plan.goalDisplayText.slice(1));
-  if (plan.bestMomentDisplay) items.push("play designed for " + plan.bestMomentDisplay);
-  if (plan.hardMomentDisplay) items.push("help for " + plan.hardMomentDisplay.charAt(0).toLowerCase() + plan.hardMomentDisplay.slice(1));
-  items.push("ready-to-use parent scripts");
+  if (plan.goalDisplayText) items.push(copy.soWeCreatedFocus(lowerFirst(plan.goalDisplayText)));
+  if (plan.bestMomentDisplay) items.push(copy.soWeCreatedPlay(plan.bestMomentDisplay));
+  if (plan.hardMomentDisplay) items.push(copy.soWeCreatedHelp(lowerFirst(plan.hardMomentDisplay)));
+  items.push(copy.soWeCreatedScripts);
   return items.slice(0, 4);
 }
 
@@ -44,23 +121,25 @@ export default async function PlanRevealPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const locale = resolveLocale(lang);
+  const copy = COPY[locale];
   const user = await getCurrentUser();
-  if (!user) redirect(localizeHref("/auth/login", lang as Locale));
+  if (!user) redirect(localizeHref("/auth/login", locale));
 
   const plan = getActivePlan(user.id);
-  if (!plan) redirect(localizeHref("/quiz", lang as Locale));
+  if (!plan) redirect(localizeHref("/quiz", locale));
 
-  const weeklyPlan = parseWeeklyPlan(plan.plan_json);
+  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
   const activityCount = weeklyPlan.days.length;
-  const routine = weeklyPlan.routine ?? deriveRoutine({
+  const routine = weeklyPlan.routine ?? localizeRoutine(deriveRoutine({
     main_pain: weeklyPlan.hardMoment ?? "",
     primary_goal: weeklyPlan.goal ?? "",
     routine_moment: weeklyPlan.bestMoment ?? "",
     needs_screen_help: weeklyPlan.goal === "fewer_screens" || weeklyPlan.hardMoment === "screen_time",
-  });
+  }), locale);
 
-  const youToldUs = weeklyPlan.quizSummary?.youToldUs ?? deriveFallbackYouToldUs(weeklyPlan);
-  const soWeCreated = weeklyPlan.quizSummary?.soWeCreated ?? deriveFallbackSoWeCreated(weeklyPlan);
+  const youToldUs = weeklyPlan.quizSummary?.youToldUs ?? deriveFallbackYouToldUs(weeklyPlan, copy);
+  const soWeCreated = weeklyPlan.quizSummary?.soWeCreated ?? deriveFallbackSoWeCreated(weeklyPlan, copy);
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 animate-slide-up">
@@ -74,24 +153,24 @@ export default async function PlanRevealPage({
                 className="w-20 h-20 relative"
               />
             </div>
-            <p className="text-xs font-semibold text-primary uppercase tracking-[0.15em] mb-2">Your plan is ready</p>
+            <p className="text-xs font-semibold text-primary uppercase tracking-[0.15em] mb-2">{copy.yourPlanReady}</p>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
               <span className="gradient-text-primary">{weeklyPlan.profileDisplayName}</span>
             </h1>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
-              Built around your answers &mdash; {activityCount} days of play that fits your family.
+              {copy.builtAround(activityCount)}
             </p>
           </div>
 
           <div className="p-6 space-y-5">
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Your TinyPlan was built from your answers
+                {copy.builtFromAnswers}
               </h2>
 
               {youToldUs.length > 0 && (
                 <div className="bg-gradient-to-br from-primary-light/60 to-primary-light/30 rounded-xl p-4 mb-3">
-                  <p className="text-sm font-semibold mb-2">You told us:</p>
+                  <p className="text-sm font-semibold mb-2">{copy.youToldUs}</p>
                   <ul className="space-y-1.5">
                     {youToldUs.map((item, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -105,7 +184,7 @@ export default async function PlanRevealPage({
 
               {soWeCreated.length > 0 && (
                 <div className="bg-gradient-to-br from-secondary-light/70 to-secondary-light/30 rounded-xl p-4">
-                  <p className="text-sm font-semibold mb-2">So this week we created:</p>
+                  <p className="text-sm font-semibold mb-2">{copy.soWeCreated}</p>
                   <ul className="space-y-1.5">
                     {soWeCreated.map((item, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -120,28 +199,28 @@ export default async function PlanRevealPage({
 
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                This week includes
+                {copy.thisWeekIncludes}
               </h2>
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-sm">
                   <SpotIcon type="activity" className="w-6 h-6 shrink-0" />
-                  <span>{activityCount} activities with parent scripts</span>
+                  <span>{copy.activitiesWithScripts(activityCount)}</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <SpotIcon type="routine" className="w-6 h-6 shrink-0" />
-                  <span>A personalised routine for your hardest moment</span>
+                  <span>{copy.personalisedRoutine}</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <SpotIcon type="sos" className="w-6 h-6 shrink-0" />
-                  <span>SOS scripts for meltdowns and tough moments</span>
+                  <span>{copy.sosScripts}</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <SpotIcon type="chat" className="w-6 h-6 shrink-0" />
-                  <span>Ask TinyPlan when you are stuck</span>
+                  <span>{copy.askTinyPlan}</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <SpotIcon type="insight" className="w-6 h-6 shrink-0" />
-                  <span>A weekly insight report</span>
+                  <span>{copy.weeklyInsight}</span>
                 </li>
               </ul>
             </div>
@@ -157,7 +236,7 @@ export default async function PlanRevealPage({
                 </svg>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Your Routine This Week</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{copy.yourRoutine}</p>
                 <p className="text-sm font-semibold">{routine.title}</p>
               </div>
             </div>
@@ -177,17 +256,17 @@ export default async function PlanRevealPage({
 
         <div className="space-y-3">
           <div className="rounded-[1.25rem] bg-gradient-to-br from-primary/10 via-primary-light/40 to-transparent p-[2px]">
-            <Link href={localizeHref("/dashboard/today", lang as Locale)} className="block">
+            <Link href={localizeHref("/dashboard/today", locale)} className="block">
               <Button size="lg" className="w-full text-lg rounded-[1.15rem]">
-                Start Day 1
+                {copy.startDay1}
               </Button>
             </Link>
           </div>
           <Link
-            href={localizeHref("/dashboard/week", lang as Locale)}
+            href={localizeHref("/dashboard/week", locale)}
             className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 font-medium"
           >
-            View full week
+            {copy.viewFullWeek}
           </Link>
         </div>
       </div>

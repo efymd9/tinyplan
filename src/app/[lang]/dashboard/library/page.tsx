@@ -1,17 +1,45 @@
 import { getCurrentUser } from "@/lib/auth/magic-link";
-import { getActivePlan, getDayLogs, parseWeeklyPlan } from "@/lib/dashboard/helpers";
+import { getActivePlan, getDayLogs, parseWeeklyPlan, localizePlan } from "@/lib/dashboard/helpers";
 import { getDb } from "@/lib/db";
 import { activities } from "@/lib/db/schema";
 import { LibraryClient } from "./library-client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FALLBACK_ACTIVITIES } from "@/lib/engine/fallback-activities";
+import { getFallbackActivities } from "@/lib/engine/fallback-activities";
+import type { Activity } from "@/lib/engine/plan-generator";
+import { deriveBestFor } from "@/lib/engine/plan-generator";
 import { localizeHref } from "@/lib/i18n/href";
-import type { Locale } from "@/lib/i18n/config";
+import { resolveLocale, type Locale } from "@/lib/i18n/config";
+import type { Metadata } from "next";
 
 import type { PlanActivity } from "@/lib/engine/plan-generator";
 
-export const metadata = { title: "Activity Library — TinyPlan" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = resolveLocale(lang);
+  return {
+    title: locale === "es" ? "Biblioteca de actividades — TinyPlan" : "Activity Library — TinyPlan",
+  };
+}
+
+const COPY = {
+  es: {
+    noActivitiesTitle: "Aún no hay actividades",
+    noActivitiesDesc:
+      "Haz el test rápido para obtener un plan semanal personalizado para tu peque.",
+    startQuiz: "Empezar el test",
+  },
+  en: {
+    noActivitiesTitle: "No activities yet",
+    noActivitiesDesc:
+      "Take the quick quiz to get a personalised weekly plan for your child.",
+    startQuiz: "Start the Quiz",
+  },
+} as const;
 
 function planActivityToLibraryItem(pa: PlanActivity, dayNumber: number) {
   return {
@@ -33,27 +61,37 @@ function planActivityToLibraryItem(pa: PlanActivity, dayNumber: number) {
   };
 }
 
-function dbActivityToLibraryItem(row: typeof activities.$inferSelect) {
+/**
+ * Maps a DB activity row to a library item, re-localizing its text fields from
+ * the locale-aware activity catalog (keyed by stable `id`). Falls back to the
+ * stored English row text when an id has no localized counterpart.
+ */
+function dbActivityToLibraryItem(
+  row: typeof activities.$inferSelect,
+  catalog: Map<string, Activity>,
+  locale: Locale,
+) {
+  const loc = catalog.get(row.id);
   return {
     id: row.id,
-    title: row.title,
-    description: row.description ?? null,
+    title: loc?.title ?? row.title,
+    description: loc?.description ?? row.description ?? null,
     time_minutes: row.time_minutes ?? null,
     energy_level: row.energy_level ?? null,
     category: row.category ?? null,
-    materials: row.materials ?? null,
-    parent_script: row.parent_script ?? null,
-    steps_json: row.steps_json ?? null,
-    why_it_works: row.why_it_works ?? null,
-    easier_version: row.easier_version ?? null,
-    bestFor: null,
+    materials: loc?.materials ?? row.materials ?? null,
+    parent_script: loc?.parent_script ?? row.parent_script ?? null,
+    steps_json: loc?.steps_json ?? row.steps_json ?? null,
+    why_it_works: loc?.why_it_works ?? row.why_it_works ?? null,
+    easier_version: loc?.easier_version ?? row.easier_version ?? null,
+    bestFor: loc ? deriveBestFor(loc, locale) : null,
     age_min: row.age_min ?? null,
     age_max: row.age_max ?? null,
     dayNumber: null,
   };
 }
 
-function fallbackToLibraryItem(fb: (typeof FALLBACK_ACTIVITIES)[number]) {
+function fallbackToLibraryItem(fb: Activity, locale: Locale) {
   return {
     id: fb.id,
     title: fb.title,
@@ -66,7 +104,7 @@ function fallbackToLibraryItem(fb: (typeof FALLBACK_ACTIVITIES)[number]) {
     steps_json: fb.steps_json ?? null,
     why_it_works: fb.why_it_works ?? null,
     easier_version: fb.easier_version ?? null,
-    bestFor: null,
+    bestFor: deriveBestFor(fb, locale),
     age_min: fb.age_min ?? null,
     age_max: fb.age_max ?? null,
     dayNumber: null,
@@ -83,6 +121,15 @@ export default async function LibraryPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const locale = resolveLocale(lang);
+  const copy = COPY[locale];
+
+  // Locale-aware activity catalog keyed by stable `id`, used to re-localize
+  // DB rows ("More Ideas") and fallbacks at render time. DB stays English.
+  const localizedCatalog = new Map<string, Activity>(
+    getFallbackActivities(locale).map((a) => [a.id, a]),
+  );
+
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -93,7 +140,7 @@ export default async function LibraryPage({
   const completedIds = new Set<string>();
 
   if (plan) {
-    const weeklyPlan = parseWeeklyPlan(plan.plan_json);
+    const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
     planItems = weeklyPlan.days.map((d) =>
       planActivityToLibraryItem(d.activity, d.dayNumber),
     );
@@ -118,7 +165,7 @@ export default async function LibraryPage({
   const planIds = new Set(planItems.map((p) => p.id));
   const moreIdeas = allDbRows
     .filter((row) => !planIds.has(row.id))
-    .map(dbActivityToLibraryItem);
+    .map((row) => dbActivityToLibraryItem(row, localizedCatalog, locale));
 
   const noPrep = [
     ...planItems.filter((a) =>
@@ -142,9 +189,9 @@ export default async function LibraryPage({
   const allIds = new Set([...planIds, ...moreIdeas.map((m) => m.id)]);
   let fallbackItems: ReturnType<typeof fallbackToLibraryItem>[] = [];
   if (planItems.length === 0 && moreIdeas.length === 0) {
-    fallbackItems = FALLBACK_ACTIVITIES
+    fallbackItems = getFallbackActivities(locale)
       .filter((fb) => !allIds.has(fb.id))
-      .map(fallbackToLibraryItem);
+      .map((fb) => fallbackToLibraryItem(fb, locale));
   }
 
   if (planItems.length === 0 && moreIdeas.length === 0 && fallbackItems.length === 0) {
@@ -165,12 +212,10 @@ export default async function LibraryPage({
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">No activities yet</h1>
-        <p className="text-muted-foreground mb-6">
-          Take the quick quiz to get a personalised weekly plan for your child.
-        </p>
-        <Link href={localizeHref("/quiz", lang as Locale)}>
-          <Button size="lg">Start the Quiz</Button>
+        <h1 className="text-2xl font-bold mb-2">{copy.noActivitiesTitle}</h1>
+        <p className="text-muted-foreground mb-6">{copy.noActivitiesDesc}</p>
+        <Link href={localizeHref("/quiz", locale)}>
+          <Button size="lg">{copy.startQuiz}</Button>
         </Link>
       </div>
     );
