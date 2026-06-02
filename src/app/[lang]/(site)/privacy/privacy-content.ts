@@ -195,7 +195,7 @@ const EN: PrivacyContent = {
       paragraphs: [
         [
           "For privacy-related questions or requests, email ",
-          { text: "hello@tinyplan.app", href: "mailto:hello@tinyplan.app" },
+          { text: "hello@tinyplan.org", href: "mailto:hello@tinyplan.org" },
           ".",
         ],
       ],
@@ -358,7 +358,7 @@ const ES: PrivacyContent = {
       paragraphs: [
         [
           "Para preguntas o solicitudes relacionadas con la privacidad, escribe a ",
-          { text: "hello@tinyplan.app", href: "mailto:hello@tinyplan.app" },
+          { text: "hello@tinyplan.org", href: "mailto:hello@tinyplan.org" },
           ".",
         ],
       ],

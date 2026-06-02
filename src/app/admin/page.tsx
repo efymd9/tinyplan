@@ -1,5 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/magic-link";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth/admin";
 import { getDb } from "@/lib/db";
 import { analyticsEvents, users, plans, payments, quizSessions } from "@/lib/db/schema";
 import { sql, asc, desc } from "drizzle-orm";
@@ -36,13 +35,7 @@ function topEntries(map: Map<string, number>, limit = 10): { label: string; coun
 }
 
 export default async function AdminPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/auth/login");
-
-  const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
-  if (adminEmails.length > 0 && !adminEmails.includes(user.email)) {
-    redirect("/dashboard");
-  }
+  await requireAdmin();
 
   const db = getDb();
 

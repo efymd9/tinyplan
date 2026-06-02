@@ -1,0 +1,42 @@
+# TinyPlan production server (Next.js + better-sqlite3) under systemd.
+# Install:
+#   sudo cp deploy/tinyplan.service /etc/systemd/system/tinyplan.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now tinyplan
+# Logs: journalctl -u tinyplan -f
+
+[Unit]
+Description=TinyPlan (Next.js) production server
+After=network.target
+
+[Service]
+Type=simple
+
+# CRITICAL: the app opens ./data/tinyplan.db relative to this directory. It MUST
+# be the repo root on a PERSISTENT disk, or a restart silently creates an empty DB.
+WorkingDirectory=/srv/tinyplan
+
+# Next automatically loads .env.production from WorkingDirectory at start.
+# Keep all secrets there (chmod 600, owned by the service user).
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Run `next` directly (not via npm) so it is the main PID and receives SIGTERM
+# for a clean shutdown (SQLite WAL is durable either way and recovers on reopen).
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --port 3000
+
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# Run as an unprivileged user that owns /srv/tinyplan and ./data.
+User=tinyplan
+Group=tinyplan
+
+# Light hardening.
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

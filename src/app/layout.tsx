@@ -2,9 +2,15 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { cookies } from "next/headers";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { PageViewTracker } from "@/components/analytics/page-view-tracker";
 import { resolveLocale } from "@/lib/i18n/config";
+
+// Real auth (Clerk) is only wired up when a publishable key is present. Keeping
+// this inline (rather than importing from the auth module) avoids pulling the
+// DB layer into the root layout's import graph.
+const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +28,7 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const store = await cookies();
   const locale = resolveLocale(store.get("tinyplan_locale")?.value);
-  return (
+  const tree = (
     <html lang={locale} className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <PageViewTracker />
@@ -30,4 +36,6 @@ export default async function RootLayout({
       </body>
     </html>
   );
+
+  return clerkEnabled ? <ClerkProvider>{tree}</ClerkProvider> : tree;
 }

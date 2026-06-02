@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createMagicLinkToken } from "@/lib/auth/magic-link";
+import { clerkEnabled, createMagicLinkToken } from "@/lib/auth/magic-link";
 import { getEmailProvider, magicLinkEmail } from "@/lib/email";
 import { resolveLocale } from "@/lib/i18n/config";
 
 export async function POST(req: NextRequest) {
+  // Dead under Clerk: authentication is handled by Clerk's hosted sign-in, and
+  // this legacy magic-link path would otherwise mint orphan user rows and send
+  // mail via an unconfigured provider. Refuse it when Clerk is enabled.
+  if (clerkEnabled) {
+    return NextResponse.json({ error: "Gone" }, { status: 410 });
+  }
   try {
     const { email } = await req.json();
     if (!email || typeof email !== "string") {

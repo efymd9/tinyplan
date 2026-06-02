@@ -1,9 +1,40 @@
-// proxy.ts
-import { NextRequest, NextResponse } from "next/server";
+// proxy.ts — Next.js 16 Proxy (formerly middleware).
+//
+// Two responsibilities, layered:
+//   1. Clerk authentication — only when a publishable key is configured. This
+//      attaches the Clerk request context (so `auth()`/`currentUser()` work in
+//      Server Components and Route Handlers) and redirects unauthenticated
+//      visitors away from protected page routes.
+//   2. Locale detection + redirect for the i18n `app/[lang]` tree.
+//
+// When Clerk is NOT configured (local dev, or a key-less build) we skip Clerk
+// entirely and run only the locale proxy — preserving the original behavior and
+// the DEV_BYPASS_AUTH flow.
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 import { locales, defaultLocale, isLocale } from "@/lib/i18n/config";
 
 const COOKIE = "tinyplan_locale";
 const ONE_YEAR = 60 * 60 * 24 * 365;
+
+const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+// Paths that are intentionally NOT under the localized `app/[lang]` tree:
+// API + admin (per CLAUDE.md) and Clerk's own sign-in/up pages.
+const NON_LOCALIZED_PREFIXES = ["/api", "/admin", "/sign-in", "/sign-up"];
+function isNonLocalized(pathname: string): boolean {
+  return NON_LOCALIZED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+// Routes that require a signed-in user. Covers both the locale-prefixed
+// dashboard (the normal case) and the bare path (before a locale redirect).
+const isProtectedRoute = createRouteMatcher([
+  "/(es|en)/dashboard(.*)",
+  "/dashboard(.*)",
+  "/admin(.*)",
+]);
 
 function pickLocale(request: NextRequest): string {
   const cookie = request.cookies.get(COOKIE)?.value;
@@ -16,8 +47,12 @@ function pickLocale(request: NextRequest): string {
   return defaultLocale;
 }
 
-export function proxy(request: NextRequest) {
+function localeProxy(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
+
+  // API, admin, and Clerk auth pages are not localized — pass them through.
+  if (isNonLocalized(pathname)) return NextResponse.next();
+
   const hasLocale = locales.some(
     (l) => pathname === `/${l}` || pathname.startsWith(`/${l}/`),
   );
@@ -41,7 +76,29 @@ export function proxy(request: NextRequest) {
   return res;
 }
 
+const clerkProxy = clerkMiddleware(async (auth, request) => {
+  // Optimistic auth gate for page routes. Route Handlers additionally verify
+  // auth themselves via getCurrentUser(), so this is defense-in-depth.
+  if (isProtectedRoute(request)) {
+    await auth.protect();
+  }
+  return localeProxy(request);
+});
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  // Production uses real Clerk auth only; when no key is present (dev / key-less
+  // build) we fall back to the plain locale proxy.
+  if (clerkEnabled) {
+    return clerkProxy(request, event);
+  }
+  return localeProxy(request);
+}
+
 export const config = {
-  // Exclude api, admin, Next internals, public assets, and any file with an extension.
-  matcher: ["/((?!api|admin|_next/static|_next/image|images|favicon.ico|.*\\..*).*)"],
+  matcher: [
+    // All page routes (incl. /admin) except Next internals and static assets.
+    "/((?!_next/static|_next/image|images|favicon.ico|.*\\..*).*)",
+    // API routes — so Clerk attaches request context for getCurrentUser().
+    "/api/(.*)",
+  ],
 };

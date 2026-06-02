@@ -185,7 +185,7 @@ const EN: TermsContent = {
       paragraphs: [
         [
           "Questions about these terms? Email ",
-          { text: "hello@tinyplan.app", href: "mailto:hello@tinyplan.app" },
+          { text: "hello@tinyplan.org", href: "mailto:hello@tinyplan.org" },
           ".",
         ],
       ],
@@ -327,7 +327,7 @@ const ES: TermsContent = {
       paragraphs: [
         [
           "¿Tienes preguntas sobre estos términos? Escribe a ",
-          { text: "hello@tinyplan.app", href: "mailto:hello@tinyplan.app" },
+          { text: "hello@tinyplan.org", href: "mailto:hello@tinyplan.org" },
           ".",
         ],
       ],

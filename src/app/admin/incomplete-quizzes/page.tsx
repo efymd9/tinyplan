@@ -1,5 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/magic-link";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth/admin";
 import { getDb } from "@/lib/db";
 import { analyticsEvents, users } from "@/lib/db/schema";
 import { asc } from "drizzle-orm";
@@ -19,16 +18,7 @@ export const metadata = { title: "Incomplete Quizzes — TinyPlan" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminIncompleteQuizzesPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/auth/login");
-
-  const adminEmails = (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
-  if (adminEmails.length > 0 && !adminEmails.includes(user.email)) {
-    redirect("/dashboard");
-  }
+  await requireAdmin();
 
   const db = getDb();
 

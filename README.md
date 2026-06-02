@@ -11,7 +11,7 @@ Personalised play and routine planning app for parents of children aged 2-6. Par
 - **31-screen quiz** across 7 stages (warm-up, parent pain, play style, routine, commitment, result) that profiles the child and family
 - **Play profile engine** deriving one of 6 profiles (big-feelings-explorer, curious-builder, story-seeker, routine-lover, fast-bored-sprinter, connection-seeker)
 - **Deterministic plan generation** producing a 7-day activity plan matched by age, goal tags, play style tags, and routine moment
-- **Magic-link auth** (passwordless email login via JWT)
+- **Clerk authentication** (production) via custom `/sign-in` and `/sign-up` pages; magic-link JWT login remains as a legacy/local fallback when Clerk is not configured
 - **Dashboard** with today view, weekly overview, activity library, progress tracking, and SOS scripts
 - **Activity logging** (done / too hard / too easy / skipped) per day
 - **Stripe subscription checkout** with $1 intro for 7 days then $14.99/month, mock fallback for local dev
@@ -30,8 +30,10 @@ All user-facing pages are served under a **locale segment**: `/es/…` (default)
 | `/quiz` | No | 31-screen quiz |
 | `/result` | No | Quiz result preview (paywall teaser) |
 | `/pricing` | No | Pricing page with plan preview |
-| `/auth/login` | No | Magic link email entry |
-| `/auth/verify` | No | Token verification and redirect |
+| `/sign-in` | No | Clerk sign-in (custom catch-all, NOT localized) |
+| `/sign-up` | No | Clerk sign-up (custom catch-all, NOT localized) |
+| `/auth/login` | No | Magic link email entry (legacy/local fallback) |
+| `/auth/verify` | No | Token verification and redirect (legacy/local fallback) |
 | `/checkout/success` | Yes | Post-checkout landing |
 | `/dashboard` | Yes | Redirects to `/dashboard/today` |
 | `/dashboard/today` | Yes | Today's activity with parent script |
@@ -61,7 +63,7 @@ All user-facing pages are served under a **locale segment**: `/es/…` (default)
 - **Language:** TypeScript 5
 - **Styling:** Tailwind CSS 4
 - **Database:** SQLite (better-sqlite3, WAL mode) with Drizzle ORM
-- **Auth:** Passwordless magic links (jose JWT)
+- **Auth:** Clerk (production) with custom `/sign-in` and `/sign-up`; magic-link JWT (jose) as legacy/local fallback when Clerk is unconfigured
 - **Payments:** Stripe (subscription mode with $1 intro period)
 - **Email:** Resend (production), console fallback (dev)
 - **Analytics:** Custom SQLite events + optional PostHog
@@ -76,12 +78,18 @@ cp .env.example .env.local
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local`. All external services are optional for local development, with built-in fallbacks:
+Copy `.env.example` to `.env.local` (`.env.example` may be git-ignored locally, but includes placeholders for every variable below when present). All external services are optional for local development, with built-in fallbacks. **Clerk is required in production** but is skipped when its publishable key is absent — the app then falls back to magic-link auth / the dev bypass for local development.
 
 | Variable | Required | Fallback |
 |---|---|---|
 | `AUTH_SECRET` | Yes | None (set any string locally) |
 | `NEXT_PUBLIC_APP_URL` | Yes | `http://localhost:3000` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Prod | Clerk disabled; magic-link/dev auth used |
+| `CLERK_SECRET_KEY` | Prod | Clerk disabled; magic-link/dev auth used |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | No | `/sign-in` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | No | `/sign-up` |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | No | `/` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | No | `/` |
 | `STRIPE_SECRET_KEY` | No | Mock checkout that auto-succeeds |
 | `STRIPE_WEBHOOK_SECRET` | No | Webhooks disabled |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | Checkout button hidden or mock |
@@ -118,7 +126,13 @@ npx drizzle-kit studio      # Open Drizzle Studio GUI
 - **Webhooks:** Signature verified via `STRIPE_WEBHOOK_SECRET`. Use `stripe listen --forward-to localhost:3000/api/webhooks/stripe` for local testing.
 - **Metadata:** `userId` and `quizSessionId` are attached to checkout session and subscription metadata.
 
-## Magic Link Auth
+## Authentication
+
+Production auth runs on **Clerk**, mounted via `ClerkProvider` in the root layout and `clerkMiddleware` in `proxy.ts` — both activated only when `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is set. Sign-in and sign-up use **custom catch-all routes** at `/sign-in` and `/sign-up` (outside `[lang]`, so not localized). `getCurrentUser()` (`src/lib/auth/magic-link.ts`) derives identity from the Clerk session and provisions a local user record keyed by the Clerk email on first sign-in.
+
+When Clerk is not configured (local dev or a key-less build), the app falls back to the legacy magic-link flow below (and a dev bypass).
+
+### Magic Link Auth (legacy / local fallback)
 
 - User enters email at `/auth/login`
 - Server generates a JWT token (15-minute expiry) and sends a magic link email

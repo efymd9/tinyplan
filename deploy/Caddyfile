@@ -1,0 +1,33 @@
+# TinyPlan — Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
+# Install: copy to /etc/caddy/Caddyfile, then `sudo systemctl reload caddy`.
+# Caddy obtains + auto-renews the TLS cert once tinyplan.org's A record points
+# at this server. It serves www and 301-redirects it to the apex so cookies and
+# Clerk stay on one canonical host.
+
+{
+	# ACME account email for Let's Encrypt expiry notices. Replace me.
+	email you@example.com
+}
+
+# Canonical apex host.
+tinyplan.org {
+	encode zstd gzip
+
+	# Proxy everything to the Next.js server on the loopback.
+	reverse_proxy 127.0.0.1:3000
+
+	# Force HTTPS for two years (safe once HTTPS is confirmed working).
+	header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+	header X-Content-Type-Options "nosniff"
+	header X-Frame-Options "SAMEORIGIN"
+	header Referrer-Policy "strict-origin-when-cross-origin"
+
+	log {
+		output file /var/log/caddy/tinyplan.log
+	}
+}
+
+# Redirect www -> apex. Caddy still provisions a cert for www automatically.
+www.tinyplan.org {
+	redir https://tinyplan.org{uri} permanent
+}

@@ -710,7 +710,7 @@ export default async function LandingPage({
             <Link href={localizeHref("/terms", locale)} className="transition-colors hover:text-foreground">
               {c.footer.terms}
             </Link>
-            <a href="mailto:hello@tinyplan.app" className="transition-colors hover:text-foreground">
+            <a href="mailto:hello@tinyplan.org" className="transition-colors hover:text-foreground">
               {c.footer.contact}
             </a>
           </div>

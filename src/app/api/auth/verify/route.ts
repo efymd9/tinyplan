@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { verifyMagicLinkToken, createSessionToken, sessionCookieOptions } from "@/lib/auth/magic-link";
+import { clerkEnabled, verifyMagicLinkToken, createSessionToken, sessionCookieOptions } from "@/lib/auth/magic-link";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 
 export async function POST(req: NextRequest) {
+  // Dead under Clerk (see /api/auth/request). Refuse so it cannot mint users or
+  // set the ignored legacy session cookie.
+  if (clerkEnabled) {
+    return NextResponse.json({ error: "Gone" }, { status: 410 });
+  }
   try {
     const { token } = await req.json();
     if (!token) {

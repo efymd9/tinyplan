@@ -32,7 +32,7 @@ class ResendEmailProvider implements EmailProvider {
   }
 
   async send(options: EmailOptions): Promise<{ id: string; success: boolean }> {
-    const from = options.from || process.env.EMAIL_FROM || 'TinyPlan <hello@tinyplan.app>';
+    const from = options.from || process.env.EMAIL_FROM || 'TinyPlan <hello@tinyplan.org>';
 
     const body: Record<string, string> = {
       from,

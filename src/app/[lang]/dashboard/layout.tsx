@@ -1,6 +1,7 @@
-import { getCurrentUser } from "@/lib/auth/magic-link";
+import { getCurrentUser, clerkEnabled } from "@/lib/auth/magic-link";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 import { DesktopNav, MobileNav } from "@/components/dashboard/nav";
 import { ProfileMenu } from "@/components/dashboard/profile-menu";
 import { getActivePlan, getDayLogs, getTodayDayNumber } from "@/lib/dashboard/helpers";
@@ -20,7 +21,9 @@ export default async function DashboardLayout({
 }) {
   const { lang } = await params;
   const user = await getCurrentUser();
-  if (!user) redirect(localizeHref("/auth/login", lang as Locale));
+  if (!user) {
+    redirect(clerkEnabled ? "/sign-in" : localizeHref("/auth/login", lang as Locale));
+  }
 
   let progress: {
     completedCount: number;
@@ -58,7 +61,11 @@ export default async function DashboardLayout({
           </Link>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <ProfileMenu email={user.email} />
+            {clerkEnabled ? (
+              <UserButton />
+            ) : (
+              <ProfileMenu email={user.email} />
+            )}
           </div>
         </div>
       </header>

@@ -1,12 +1,15 @@
 import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
 import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { cache } from 'react';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { eq } from 'drizzle-orm';
+import { v4 as uuid } from 'uuid';
+import { getDb } from '@/lib/db';
+import { users } from '@/lib/db/schema';
 
 const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || 'tinyplan-dev-secret-change-in-production'
 );
-
-const SESSION_COOKIE = 'tinyplan-session';
 
 function shouldSecureCookie(): boolean {
   if (process.env.COOKIE_SECURE !== undefined) {
@@ -37,6 +40,20 @@ const DEV_USER: AuthUser = {
   email: 'dev@tinyplan.local',
   subscriptionStatus: 'active',
 };
+
+/**
+ * Local development bypass. Honored ONLY outside production so a stray
+ * DEV_BYPASS_AUTH=true can never disable real auth in a production deploy.
+ */
+const DEV_BYPASS =
+  process.env.DEV_BYPASS_AUTH === 'true' &&
+  process.env.NODE_ENV !== 'production';
+
+/**
+ * Whether real (Clerk) authentication is configured. When false (local dev or a
+ * key-less build) the app runs without Clerk and relies on the dev bypass.
+ */
+export const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 /**
  * Generate a magic link token (JWT signed, 15 min expiry).
@@ -107,16 +124,55 @@ export async function verifySessionToken(
 }
 
 /**
- * Helper to get current user from cookies (for server components).
- * Uses Next.js 16 async cookies() API.
+ * Resolve the current authenticated user for Server Components, Route Handlers,
+ * and Server Actions. Memoized per-request with React `cache`.
+ *
+ * Production derives identity from Clerk: the Clerk session yields an email,
+ * which is mapped onto our local `users` row (creating one on first sign-in).
+ * That row owns the UUID every other table references, so the rest of the app
+ * is unchanged. In local development, the dev bypass returns a fixed user.
  */
-export async function getCurrentUser(): Promise<AuthUser | null> {
-  if (process.env.DEV_BYPASS_AUTH === 'true') return DEV_USER;
+export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
+  // Local development bypass (never active in production).
+  if (DEV_BYPASS) return DEV_USER;
 
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE);
+  // No production auth source configured.
+  if (!clerkEnabled) return null;
 
-  if (!sessionCookie?.value) return null;
+  const { userId } = await auth();
+  if (!userId) return null;
 
-  return verifySessionToken(sessionCookie.value);
-}
+  const clerkUser = await currentUser();
+  const email =
+    clerkUser?.primaryEmailAddress?.emailAddress ??
+    clerkUser?.emailAddresses?.[0]?.emailAddress;
+  if (!email) return null;
+
+  const db = getDb();
+  const existing = db.select().from(users).where(eq(users.email, email)).get();
+  if (existing) {
+    return {
+      id: existing.id,
+      email: existing.email,
+      subscriptionStatus:
+        (existing.subscription_status as AuthUser['subscriptionStatus']) ||
+        'free',
+    };
+  }
+
+  // First sign-in: provision the local user record keyed by the Clerk email.
+  const id = uuid();
+  const now = Math.floor(Date.now() / 1000);
+  db.insert(users)
+    .values({
+      id,
+      email,
+      name: clerkUser?.fullName ?? null,
+      subscription_status: 'free',
+      created_at: now,
+      updated_at: now,
+    })
+    .run();
+
+  return { id, email, subscriptionStatus: 'free' };
+});
