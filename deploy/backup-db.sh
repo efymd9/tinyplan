@@ -5,14 +5,14 @@
 # safe to run while the app is live — unlike `cp tinyplan.db`, which can miss
 # data still sitting in the -wal sidecar file.
 #
-# Schedule via cron (as the tinyplan user):
-#   0 3 * * *  /srv/tinyplan/deploy/backup-db.sh >> /srv/tinyplan/backups/backup.log 2>&1
+# Schedule via cron (root on the VPS):
+#   0 3 * * *  /root/parentpath/deploy/backup-db.sh >> /root/backups/backup.log 2>&1
 #
 # Override paths/retention with env vars if needed.
 set -euo pipefail
 
-DB="${TINYPLAN_DB:-/srv/tinyplan/data/tinyplan.db}"
-DEST="${TINYPLAN_BACKUP_DIR:-/srv/tinyplan/backups}"
+DB="${TINYPLAN_DB:-/root/parentpath/data/tinyplan.db}"
+DEST="${TINYPLAN_BACKUP_DIR:-/root/backups}"
 RETAIN="${TINYPLAN_BACKUP_RETAIN:-14}"
 
 mkdir -p "$DEST"

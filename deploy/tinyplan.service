@@ -1,42 +1,36 @@
 # TinyPlan production server (Next.js + better-sqlite3) under systemd.
-# Install:
+# Mirrors the LIVE unit at /etc/systemd/system/tinyplan.service on the VPS.
+# Install / restore:
 #   sudo cp deploy/tinyplan.service /etc/systemd/system/tinyplan.service
 #   sudo systemctl daemon-reload && sudo systemctl enable --now tinyplan
 # Logs: journalctl -u tinyplan -f
 
 [Unit]
-Description=TinyPlan (Next.js) production server
+Description=TinyPlan Next.js app
 After=network.target
 
 [Service]
 Type=simple
 
-# CRITICAL: the app opens ./data/tinyplan.db relative to this directory. It MUST
-# be the repo root on a PERSISTENT disk, or a restart silently creates an empty DB.
-WorkingDirectory=/srv/tinyplan
+# CRITICAL: the app opens ./data/tinyplan.db relative to this directory, so it
+# MUST be the app root on a persistent disk — otherwise a restart silently
+# creates an empty DB elsewhere and "loses" all data.
+WorkingDirectory=/root/parentpath
 
-# Next automatically loads .env.production from WorkingDirectory at start.
-# Keep all secrets there (chmod 600, owned by the service user).
+# Next loads .env.production from WorkingDirectory for both build and start.
+# Keep secrets there (chmod 600).
 Environment=NODE_ENV=production
-Environment=PORT=3000
+EnvironmentFile=/root/parentpath/.env.production
 
-# Run `next` directly (not via npm) so it is the main PID and receives SIGTERM
-# for a clean shutdown (SQLite WAL is durable either way and recovers on reopen).
-ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --port 3000
+# Port 3002 — 3000 is used by another app on this shared box. Caddy proxies here.
+ExecStart=/usr/bin/npm run start -- -H 0.0.0.0 -p 3002
 
 Restart=always
-RestartSec=3
-KillSignal=SIGTERM
-TimeoutStopSec=20
+RestartSec=5
 
-# Run as an unprivileged user that owns /srv/tinyplan and ./data.
-User=tinyplan
-Group=tinyplan
-
-# Light hardening.
-NoNewPrivileges=true
-ProtectSystem=full
-PrivateTmp=true
+# Runs as root on this box, consistent with the other apps here. On a dedicated
+# host, prefer a non-root service user that owns the app dir and ./data.
+User=root
 
 [Install]
 WantedBy=multi-user.target
