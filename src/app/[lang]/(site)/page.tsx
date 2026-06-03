@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { StickyMobileCTA } from "@/components/landing/sticky-cta";
 import {
   IconTile,
@@ -129,7 +130,7 @@ export default async function LandingPage({
             aria-label={c.nav.homeAria}
             className="flex items-center"
           >
-            <BrandLogo width={132} priority />
+            <BrandLogo width={132} priority className="w-24 sm:w-[132px] h-auto" />
           </Link>
           <nav className="hidden items-center gap-8 md:flex" aria-label={c.nav.primaryAria}>
             <a
@@ -152,6 +153,7 @@ export default async function LandingPage({
             </a>
           </nav>
           <div className="flex items-center gap-2 sm:gap-4">
+            <LanguageSwitcher />
             <Link
               href={clerkEnabled ? "/sign-in" : localizeHref("/auth/login", locale)}
               className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
@@ -159,7 +161,7 @@ export default async function LandingPage({
               {c.nav.logIn}
             </Link>
             <Link href={localizeHref("/quiz", locale)}>
-              <Button size="sm" className="rounded-full px-5">
+              <Button size="sm" className="rounded-full px-4 sm:px-5">
                 {c.nav.buildMyPlan}
               </Button>
             </Link>

@@ -4,6 +4,7 @@ import { useMemo, useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import {
   buildTagProfile,
@@ -283,11 +284,14 @@ function ResultContent() {
       <header className="sticky top-0 z-40 glass-bar border-b border-border-whisper px-4 py-3 shadow-xs">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <Link href={localizeHref("/", locale)} aria-label={copy.homeAria}>
-            <BrandLogo width={130} priority />
+            <BrandLogo width={130} priority className="w-24 sm:w-[130px] h-auto" />
           </Link>
-          <span className="text-xs font-medium text-secondary bg-secondary-light px-3 py-1 rounded-full">
-            {copy.planReadyBadge}
-          </span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="hidden sm:inline-block text-xs font-medium text-secondary bg-secondary-light px-3 py-1 rounded-full">
+              {copy.planReadyBadge}
+            </span>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 

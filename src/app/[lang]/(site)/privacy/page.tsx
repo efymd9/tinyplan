@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { localizeHref } from "@/lib/i18n/href";
 import { resolveLocale, type Locale } from "@/lib/i18n/config";
 import {
@@ -74,14 +75,17 @@ export default async function PrivacyPolicyPage({
       <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-md border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <Link href={localizeHref("/", locale)} aria-label={c.homeAriaLabel}>
-            <BrandLogo width={130} />
+            <BrandLogo width={130} className="w-24 sm:w-[130px] h-auto" />
           </Link>
-          <Link
-            href={localizeHref("/", locale)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {c.backToHome}
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href={localizeHref("/", locale)}
+              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {c.backToHome}
+            </Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 

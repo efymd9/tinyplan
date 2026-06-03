@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,6 +269,11 @@ export function QuizShell() {
           </div>
           <span className="text-xs text-muted-foreground font-medium tabular-nums shrink-0">
             {state.step + 1}/{total}
+          </span>
+          {/* Inline on sm+ only — the mobile bar is already full (back + logo +
+              progress + counter); locale is chosen before the quiz starts. */}
+          <span className="hidden sm:block shrink-0">
+            <LanguageSwitcher />
           </span>
         </div>
       </div>

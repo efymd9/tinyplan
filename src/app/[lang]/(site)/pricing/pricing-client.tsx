@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { buildTagProfile, getProfileDisplayName, getGoalDisplayText } from "@/lib/quiz/tags";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
@@ -149,14 +150,17 @@ function PricingContent() {
       <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-md border-b border-border-whisper shadow-xs px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <Link href={localizeHref("/", locale)} aria-label={c.brandHome}>
-            <BrandLogo width={130} />
+            <BrandLogo width={130} className="w-24 sm:w-[130px] h-auto" />
           </Link>
-          <Link
-            href={localizeHref("/result", locale)}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            {c.backToResults}
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href={localizeHref("/result", locale)}
+              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground"
+            >
+              {c.backToResults}
+            </Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
