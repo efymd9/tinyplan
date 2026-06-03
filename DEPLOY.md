@@ -190,15 +190,26 @@ Completing both steps satisfies the 30-day deletion commitment in the privacy po
 
 ## Going live with real billing (currently deferred)
 
-Billing is **fully built but enforcement is OFF**. Soft-launch mode (`DEV_BYPASS_PAYWALL=true`, no `STRIPE_SECRET_KEY`) means mock checkout, no real charges, and an open paywall: `isBillingEnforced()` returns `false`, so the `requireActiveSubscription()` gate in the dashboard layout is a no-op. The webhook is already implemented at `POST /api/webhooks/stripe` — it verifies the signature with `STRIPE_WEBHOOK_SECRET`, writes idempotent `payments` rows (keyed on the Stripe invoice id), and maps Stripe statuses onto our enum (`trialing → trial`; `active`/`past_due → active`; `canceled`/`unpaid`/`incomplete_expired → cancelled`), resolving the user by `metadata.userId` then lowercased email.
+Billing is **fully built but enforcement is OFF**. There are three postures:
+
+| Posture | Config | Checkout | Gate |
+|---|---|---|---|
+| Mock (original soft launch) | `DEV_BYPASS_PAYWALL=true`, no `STRIPE_SECRET_KEY` | mock pass-through to success | open |
+| **Sandbox rehearsal (current, since 2026-06-03)** | `DEV_BYPASS_PAYWALL=true` + `sk_test_…` + `whsec_…` | **real Stripe TEST page** (test cards only, e.g. 4242…, no real charges) | open |
+| Live | no bypass + `sk_live_…` + `whsec_…` | real charges | **enforced** |
+
+The preflight allows the test-key+bypass combo (warns `SANDBOX BILLING REHEARSAL`) but **throws** on a live key + bypass. The gate stays open during rehearsal deliberately: webhook events for anonymous checkouts arrive **before** the buyer's local user exists (they sign up after paying), so enforcing the gate now would lock fresh buyers out as `free` — that sync gap must be solved before going live (see step 5). The current test-mode webhook endpoint is `we_1TeJutFou4z0rzpRLwlgPgrD`.
+
+`isBillingEnforced()` returns `false` while the bypass is on, so the `requireActiveSubscription()` gate in the dashboard layout is a no-op. The webhook is already implemented at `POST /api/webhooks/stripe` — it verifies the signature with `STRIPE_WEBHOOK_SECRET`, writes idempotent `payments` rows (keyed on the Stripe invoice id), and maps Stripe statuses onto our enum (`trialing → trial`; `active`/`past_due → active`; `canceled`/`unpaid`/`incomplete_expired → cancelled`), resolving the user by `metadata.userId` then lowercased email.
 
 The `$1-for-7-days → $14.99/month` model was **validated in Stripe test mode** with a test clock: $1.00 charged at checkout (the `subscription_create` invoice), $14.99 at trial end (`subscription_cycle`), then the subscription goes `active`.
 
 To charge for real:
-1. Set `STRIPE_SECRET_KEY=sk_live_…` **and** `STRIPE_WEBHOOK_SECRET=whsec_…` in `.env.production`; **remove** `DEV_BYPASS_PAYWALL`. The startup preflight (`src/instrumentation.ts`) **throws** if the Stripe key is set without the webhook secret, and **throws** on the contradiction `STRIPE_SECRET_KEY` + `DEV_BYPASS_PAYWALL=true`.
-2. Register the endpoint `https://tinyplan.org/api/webhooks/stripe` in the Stripe dashboard and copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+1. Set `STRIPE_SECRET_KEY=sk_live_…` **and** `STRIPE_WEBHOOK_SECRET=whsec_…` in `.env.production`; **remove** `DEV_BYPASS_PAYWALL`. The startup preflight (`src/instrumentation.ts`) **throws** if the Stripe key is set without the webhook secret, and **throws** on the contradiction LIVE `STRIPE_SECRET_KEY` + `DEV_BYPASS_PAYWALL=true` (the same combo with a TEST key is allowed = sandbox rehearsal).
+2. Register a LIVE-mode endpoint `https://tinyplan.org/api/webhooks/stripe` in the Stripe dashboard and copy its signing secret into `STRIPE_WEBHOOK_SECRET` (the existing `we_…` endpoint is TEST-mode only).
 3. `npm run build && systemctl restart tinyplan`.
 4. **Re-verify the charge timeline on the LIVE account** (a real low-value or test-clock run) before the first real customer — confirm the $1 checkout charge, the $14.99 renewal at trial end, and that `subscription_status` advances to `active`.
+5. **Close the anonymous-buyer sync gap before enforcing the gate:** a buyer pays before signing up, so their webhook events find no local user and their account is provisioned `free` after sign-up — with the gate enforced they'd be locked out of what they just bought. Add a sync step (e.g. on first sign-in / plan reclaim, look up the Stripe customer by email and adopt its subscription status) and test the full anonymous buy→sign-up→dashboard path in rehearsal mode first.
 
 ---
 

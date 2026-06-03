@@ -47,11 +47,26 @@ export async function register() {
       );
     }
     if (paywallBypassed) {
-      throw new Error(
-        "[tinyplan] DEV_BYPASS_PAYWALL=true with a real STRIPE_SECRET_KEY is " +
-          "contradictory: billing is live but the paywall is forced open. " +
-          "Unset DEV_BYPASS_PAYWALL to enforce billing.",
-      );
+      // Sandbox rehearsal (sk_test_…) is a legitimate staging posture: the
+      // funnel shows the REAL Stripe checkout page (test cards only, no real
+      // charges) while the subscription gate stays OPEN, so fresh sign-ups —
+      // whose webhook events arrive before their local user exists — are not
+      // locked out of the dashboard. A LIVE key with the bypass is still
+      // contradictory (real charges + open paywall) and aborts startup.
+      if (process.env.STRIPE_SECRET_KEY!.startsWith("sk_test")) {
+        console.warn(
+          "[tinyplan] SANDBOX BILLING REHEARSAL: STRIPE_SECRET_KEY is a TEST " +
+            "key and DEV_BYPASS_PAYWALL=true — checkout uses the real Stripe " +
+            "TEST page (test cards only), the subscription gate stays OPEN. " +
+            "Switch to live keys AND remove DEV_BYPASS_PAYWALL to enforce billing.",
+        );
+      } else {
+        throw new Error(
+          "[tinyplan] DEV_BYPASS_PAYWALL=true with a LIVE STRIPE_SECRET_KEY is " +
+            "contradictory: billing is live but the paywall is forced open. " +
+            "Unset DEV_BYPASS_PAYWALL to enforce billing.",
+        );
+      }
     }
   } else if (paywallBypassed) {
     // No Stripe key + explicit bypass = the soft-launch posture. Allowed, but
