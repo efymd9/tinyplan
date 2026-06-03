@@ -1,6 +1,6 @@
 # TinyPlan
 
-Personalised play and routine planning app for parents of children aged 2-6. Parents complete a 21-screen quiz about their child's play style, family routines, and goals. TinyPlan derives a play profile (one of 6 types) and generates a deterministic 7-day activity plan with exact parent scripts, materials lists, and step-by-step guidance. Includes SOS scripts for difficult moments (tantrums, bedtime battles, screen transitions).
+Personalised play and routine planning app for parents of children aged 2-6. Parents complete a 20-screen quiz about their child's play style, family routines, and goals. TinyPlan derives a play profile (one of 6 types) and generates a deterministic 7-day activity plan with exact parent scripts, materials lists, and step-by-step guidance. Includes SOS scripts for difficult moments (tantrums, bedtime battles, screen transitions).
 
 **Pricing:** $1 for 7 days, then $14.99/month.
 
@@ -10,7 +10,7 @@ Personalised play and routine planning app for parents of children aged 2-6. Par
 
 ## Implemented MVP Features
 
-- **21-screen quiz** profiling the child and family across warm-up, pain points, play style, routine, and commitment stages (no child PII — no child name is collected)
+- **20-screen quiz** profiling the child and family across warm-up, pain points, play style, routine, and commitment stages (no child PII — no child name is collected)
 - **Play profile engine** deriving one of 6 profiles (big-feelings-explorer, curious-builder, story-seeker, routine-lover, fast-bored-sprinter, connection-seeker)
 - **Deterministic plan generation** producing a 7-day activity plan matched by age, goal tags, play style tags, and routine moment
 - **Clerk authentication** (production) via custom `/sign-in` and `/sign-up` pages; a legacy magic-link JWT flow remains only as a key-less local/dev fallback
@@ -29,7 +29,7 @@ All user-facing pages are served under a **locale segment**: `/es/…` (default)
 
 | Path | Auth | Description |
 |---|---|---|
-| `/quiz` | No | 21-screen quiz |
+| `/quiz` | No | 20-screen quiz |
 | `/result` | No | Quiz result preview (paywall teaser) |
 | `/pricing` | No | Pricing page with plan preview |
 | `/checkout/success` | No | Post-checkout: generates the plan, redirects to `/dashboard/reveal` |
@@ -186,7 +186,7 @@ src/
     db/                   # schema.ts (9 tables), index.ts (better-sqlite3 singleton, runtime createTables/migrate)
     auth/                 # magic-link.ts (getCurrentUser → Clerk → users row; clerkEnabled; legacy jose helpers)
                           # admin.ts (requireAdmin, fail-closed allowlist)
-    quiz/                 # questions.ts (+ .en/.es) 21 screens, tags.ts (TagProfile + profile derivation)
+    quiz/                 # questions.ts (+ .en/.es) 20 screens, tags.ts (TagProfile + profile derivation)
     engine/               # plan-generator.ts (deterministic), fallback-activities.ts, localize-plan.ts, daily-toolkit.ts, ai-adapter.ts (stub)
     routines/ payments/   # routines.ts (deriveRoutine/localizeRoutine); stripe.ts (checkout, billing portal, verifyWebhookSignature)
     analytics/            # events.ts (first-party SQLite), use-analytics.ts (client hook)

@@ -135,15 +135,6 @@ export const QUIZ_QUESTIONS_EN: QuizScreen[] = [
     },
   },
 
-  {
-    id: 'email',
-    type: 'email',
-    stage: 'pain',
-    stageLabel: 'Understanding your goals',
-    text: "We're building your plan — where should we save it?",
-    subtitle: "We'll use this to save your personalized plan and send your first week.",
-  },
-
   // ═══════════════════════════════════════════════════════════════════════════
   // Stage: child-style — "Your child's play style"
   // ═══════════════════════════════════════════════════════════════════════════
@@ -399,7 +390,7 @@ export const QUIZ_QUESTIONS_EN: QuizScreen[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Stage: preview — Mini preview, email, loading
+  // Stage: preview — Mini preview, loading
   // ═══════════════════════════════════════════════════════════════════════════
 
   {

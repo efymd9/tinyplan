@@ -138,15 +138,6 @@ export const QUIZ_QUESTIONS_ES: QuizScreen[] = [
     },
   },
 
-  {
-    id: 'email',
-    type: 'email',
-    stage: 'pain',
-    stageLabel: 'Entendiendo tus metas',
-    text: 'Estamos creando tu plan: ¿dónde lo guardamos?',
-    subtitle: 'Lo usaremos para guardar tu plan personalizado y enviarte tu primera semana.',
-  },
-
   // ═══════════════════════════════════════════════════════════════════════════
   // Stage: child-style — "El estilo de juego de tu peque"
   // ═══════════════════════════════════════════════════════════════════════════
@@ -402,7 +393,7 @@ export const QUIZ_QUESTIONS_ES: QuizScreen[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Stage: preview — Vista previa, email, carga
+  // Stage: preview — Vista previa, carga
   // ═══════════════════════════════════════════════════════════════════════════
 
   {

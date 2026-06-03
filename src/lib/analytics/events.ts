@@ -20,7 +20,6 @@ export type AnalyticsEvent =
       event: 'cta_clicked';
       properties: { location: string; href?: string };
     }
-  | { event: 'email_submitted'; properties?: { email_domain?: string } }
   | { event: 'mini_result_viewed'; properties?: { profile?: string } }
   | {
       event: 'paywall_viewed';

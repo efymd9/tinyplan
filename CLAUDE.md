@@ -2,7 +2,7 @@
 
 # TinyPlan
 
-Personalised play and routine planning app for parents of children aged 2-6. Parents take a 21-screen quiz, receive a play profile (one of 6 types), and get a deterministic 7-day activity plan with parent scripts, materials, and step-by-step guidance. Subscription model: $1 for 7 days, then $14.99/month via Stripe. Bilingual: **Spanish (default)** + English.
+Personalised play and routine planning app for parents of children aged 2-6. Parents take a 20-screen quiz, receive a play profile (one of 6 types), and get a deterministic 7-day activity plan with parent scripts, materials, and step-by-step guidance. Subscription model: $1 for 7 days, then $14.99/month via Stripe. Bilingual: **Spanish (default)** + English.
 
 **Live:** https://tinyplan.org — see [DEPLOY.md](DEPLOY.md) for how it is hosted, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design.
 
@@ -57,7 +57,7 @@ npm run lint         # ESLint
 ### Pages
 - `/` — redirects to `/{locale}` (default `/es`)
 - `/[lang]` — landing page
-- `/[lang]/quiz` — 21-screen quiz shell (client component, localStorage persistence)
+- `/[lang]/quiz` — 20-screen quiz shell (client component, localStorage persistence)
 - `/[lang]/result` — quiz result preview + paywall teaser
 - `/[lang]/pricing` — pricing + plan preview
 - `/[lang]/checkout/success` — post-checkout: generates the plan, routes to `/dashboard/reveal`
@@ -88,7 +88,7 @@ npm run lint         # ESLint
 - `src/lib/auth/magic-link.ts` — `getCurrentUser()` (Clerk → local `users` row), the `clerkEnabled` flag, and legacy jose helpers
 - `src/lib/auth/admin.ts` — `requireAdmin()` / `isAdminEmail()` (fail-closed `ADMIN_EMAILS` gate)
 - `src/instrumentation.ts` — production startup preflight (throws if `CLERK_SECRET_KEY` is missing while Clerk is on; warns on empty `ADMIN_EMAILS`); `next.config.ts` — build-time guard (requires https `NEXT_PUBLIC_APP_URL` + `pk_` Clerk key)
-- `src/lib/quiz/questions.ts` (+ `.en.ts`/`.es.ts`) — 21-screen quiz definition · `src/lib/quiz/tags.ts` — TagProfile builder + play profile derivation
+- `src/lib/quiz/questions.ts` (+ `.en.ts`/`.es.ts`) — 20-screen quiz definition · `src/lib/quiz/tags.ts` — TagProfile builder + play profile derivation
 - `src/lib/engine/plan-generator.ts` — deterministic 7-day plan · `src/lib/engine/localize-plan.ts` — render-time re-localization of stored (English) plans
 - `src/lib/payments/stripe.ts` — checkout session (mock/real), `createBillingPortalSession`, `verifyWebhookSignature` (consumed by `/api/webhooks/stripe`)
 - `src/lib/auth/subscription.ts` — `isBillingEnforced()` / `requireActiveSubscription()` paywall gate (no-op during soft launch) · `src/components/dashboard/plan-reclaimer.tsx` — adopts the anonymous funnel plan after sign-in (`tinyplan_pending_plan_id`)

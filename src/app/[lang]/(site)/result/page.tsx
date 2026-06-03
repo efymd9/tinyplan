@@ -173,7 +173,6 @@ function ResultContent() {
       const parsed = JSON.parse(raw);
       return {
         tagProfile: buildTagProfile(parsed.answers),
-        email: parsed.email || "",
         answers: parsed.answers,
       };
     } catch {
@@ -204,7 +203,7 @@ function ResultContent() {
     );
   }
 
-  const { tagProfile, email, answers } = data;
+  const { tagProfile, answers } = data;
   const profile = tagProfile.play_profile;
   const profileName = getProfileDisplayName(profile, locale);
   const goalText = getGoalDisplayText(tagProfile.primary_goal, locale);
@@ -256,8 +255,10 @@ function ResultContent() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // No email is sent: the quiz no longer collects one. Stripe Checkout
+        // gathers the payer's email itself, and the webhook resolves the local
+        // user from it (or from metadata.userId for signed-in checkouts).
         body: JSON.stringify({
-          email,
           answers: JSON.stringify(answers),
         }),
       });

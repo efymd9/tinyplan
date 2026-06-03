@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { getVisibleScreensForLocale, type QuizScreen } from "@/lib/quiz/questions";
 import { useAnalytics } from "@/lib/analytics/use-analytics";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
@@ -18,13 +16,12 @@ import type { Dictionary } from "@/lib/i18n/en";
 
 const STORAGE_KEY = "tinyplan_quiz";
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
-const STATE_VERSION = 5;
+const STATE_VERSION = 6;
 
 interface QuizState {
   version: number;
   step: number;
   answers: Record<string, string | string[]>;
-  email: string;
 }
 
 function loadState(): QuizState {
@@ -40,7 +37,7 @@ function loadState(): QuizState {
 }
 
 function freshState(): QuizState {
-  return { version: STATE_VERSION, step: 0, answers: {}, email: "" };
+  return { version: STATE_VERSION, step: 0, answers: {} };
 }
 
 function saveState(state: QuizState) {
@@ -57,7 +54,6 @@ export function QuizShell() {
   const { track } = useAnalytics();
   const [state, setState] = useState<QuizState>(loadState);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [emailError, setEmailError] = useState("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -80,12 +76,12 @@ export function QuizShell() {
   }, []);
 
   const finishQuiz = useCallback(
-    (answers: Record<string, string | string[]>, email: string) => {
+    (answers: Record<string, string | string[]>) => {
       localStorage.removeItem(STORAGE_KEY);
       try {
         sessionStorage.setItem(
           RESULT_STORAGE_KEY,
-          JSON.stringify({ answers, email })
+          JSON.stringify({ answers })
         );
       } catch {}
       router.push(localizeHref("/result", locale));
@@ -96,7 +92,7 @@ export function QuizShell() {
   const goNext = useCallback(() => {
     const nextStep = state.step + 1;
     if (nextStep >= total) {
-      finishQuiz(state.answers, state.email);
+      finishQuiz(state.answers);
       return;
     }
     const next = { ...state, step: nextStep };
@@ -128,7 +124,7 @@ export function QuizShell() {
         const newVisible = getVisibleScreensForLocale(next.answers, locale);
         const s = state.step + 1;
         if (s >= newVisible.length) {
-          finishQuiz(next.answers, state.email);
+          finishQuiz(next.answers);
           return;
         }
         persist({ ...next, step: s });
@@ -174,7 +170,7 @@ export function QuizShell() {
       const newVisible = getVisibleScreensForLocale(updatedAnswers, locale);
       const nextStep = state.step + 1;
       if (nextStep >= newVisible.length) {
-        finishQuiz(updatedAnswers, state.email);
+        finishQuiz(updatedAnswers);
         return;
       }
       persist({ ...next, step: nextStep });
@@ -185,20 +181,6 @@ export function QuizShell() {
     },
     [state, screen, track, persist, finishQuiz, locale]
   );
-
-  const submitEmail = useCallback(() => {
-    const email = state.email.trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError(copy.emailInvalid);
-      return;
-    }
-    setEmailError("");
-    track({
-      event: "email_submitted",
-      properties: { email_domain: email.split("@")[1] },
-    });
-    goNext();
-  }, [state.email, track, goNext, copy.emailInvalid]);
 
   // Loading screen auto-advance
   useEffect(() => {
@@ -289,14 +271,6 @@ export function QuizShell() {
                   : JSON.parse(screen.text || '[]') as string[]
               }
               currentStep={loadingStep}
-            />
-          ) : screen.type === "email" ? (
-            <EmailScreen
-              email={state.email}
-              error={emailError}
-              copy={copy}
-              onChange={(e) => persist({ ...state, email: e })}
-              onSubmit={submitEmail}
             />
           ) : screen.type === "preview" ? (
             <PreviewScreen
@@ -554,59 +528,6 @@ function PreviewScreen({
       <Button onClick={onContinue} size="lg" className="w-full">
         {copy.saveMyPlan}
       </Button>
-    </div>
-  );
-}
-
-function EmailScreen({
-  email,
-  error,
-  copy,
-  onChange,
-  onSubmit,
-}: {
-  email: string;
-  error: string;
-  copy: ShellCopy;
-  onChange: (v: string) => void;
-  onSubmit: () => void;
-}) {
-  const locale = useLocale();
-  return (
-    <div className="text-center py-10 animate-slide-up">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-light to-primary/10 shadow-elevated flex items-center justify-center mx-auto mb-6">
-        <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-        </svg>
-      </div>
-      <h2 className="text-2xl font-bold mb-3">{copy.emailTitle}</h2>
-      <p className="text-muted-foreground mb-8 leading-relaxed max-w-sm mx-auto">
-        {copy.emailSubtitle}
-      </p>
-      <div className="max-w-sm mx-auto">
-        <Input
-          type="email"
-          placeholder={copy.emailPlaceholder}
-          value={email}
-          error={error}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-        />
-        <Button onClick={onSubmit} size="lg" className="w-full mt-5">
-          {copy.saveMyPlan}
-        </Button>
-        <div className="flex items-center justify-center gap-1.5 mt-5 text-xs text-muted-foreground">
-          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-          </svg>
-          <span>
-            {copy.privacyNote}{" "}
-            <Link href={localizeHref("/privacy", locale)} className="underline hover:text-foreground transition-colors">
-              {copy.privacyLink}
-            </Link>
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
