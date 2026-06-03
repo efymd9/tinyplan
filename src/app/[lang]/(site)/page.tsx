@@ -79,14 +79,31 @@ export async function generateMetadata({
       canonical: `/${locale}`,
       languages: { es: "/es", en: "/en", "x-default": "/es" },
     },
+    // Next.js metadata merging is SHALLOW: defining `openGraph` here replaces
+    // the [lang] layout's block AND drops the file-convention OG image, so
+    // every field (incl. images) must be re-specified.
     openGraph: {
+      type: "website",
+      siteName: "TinyPlan",
       title: c.meta.title,
       description: c.meta.description,
       url: `/${locale}`,
+      locale: locale === "es" ? "es_ES" : "en_US",
+      alternateLocale: [locale === "es" ? "en_US" : "es_ES"],
+      images: [
+        {
+          url: `/${locale}/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: c.meta.title,
+        },
+      ],
     },
     twitter: {
+      card: "summary_large_image",
       title: c.meta.title,
       description: c.meta.description,
+      images: [`/${locale}/opengraph-image`],
     },
   };
 }
