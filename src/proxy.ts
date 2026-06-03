@@ -36,6 +36,16 @@ const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
 ]);
 
+// The post-checkout funnel drops an ACCOUNT-LESS visitor onto the plan reveal
+// (checkout/success → /dashboard/reveal). For them "authenticate" means CREATE
+// an account, so reveal routes to Clerk's sign-UP screen (which offers a
+// "Sign in" link for the rare returning user). Every other protected route is
+// returning-user territory and keeps the sign-in default.
+const isFunnelSignUpRoute = createRouteMatcher([
+  "/(es|en)/dashboard/reveal(.*)",
+  "/dashboard/reveal(.*)",
+]);
+
 function pickLocale(request: NextRequest): string {
   const cookie = request.cookies.get(COOKIE)?.value;
   if (cookie && isLocale(cookie)) return cookie;
@@ -80,7 +90,16 @@ const clerkProxy = clerkMiddleware(async (auth, request) => {
   // Optimistic auth gate for page routes. Route Handlers additionally verify
   // auth themselves via getCurrentUser(), so this is defense-in-depth.
   if (isProtectedRoute(request)) {
-    await auth.protect();
+    if (isFunnelSignUpRoute(request)) {
+      // Funnel landing: send signed-out visitors to sign-UP (account creation),
+      // returning to the reveal afterwards so the plan reclaim can run.
+      const { userId, redirectToSignUp } = await auth();
+      if (!userId) {
+        return redirectToSignUp({ returnBackUrl: request.url });
+      }
+    } else {
+      await auth.protect();
+    }
   }
   return localeProxy(request);
 });

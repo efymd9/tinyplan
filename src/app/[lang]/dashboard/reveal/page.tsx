@@ -127,7 +127,9 @@ export default async function PlanRevealPage({
   const locale = resolveLocale(lang);
   const copy = COPY[locale];
   const user = await getCurrentUser();
-  if (!user) redirect(clerkEnabled ? "/sign-in" : localizeHref("/auth/login", locale));
+  // Funnel landing: an account-less just-checked-out visitor should CREATE an
+  // account, so this (normally proxy-handled) fallback goes to sign-up too.
+  if (!user) redirect(clerkEnabled ? "/sign-up" : localizeHref("/auth/login", locale));
 
   const plan = getActivePlan(user.id);
   const parsedPlan = plan ? parseWeeklyPlan(plan.plan_json, plan.id) : null;
