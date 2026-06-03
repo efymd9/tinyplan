@@ -11,6 +11,7 @@ import {
 } from "@/components/landing/landing-icons";
 import { localizeHref } from "@/lib/i18n/href";
 import { resolveLocale, type Locale } from "@/lib/i18n/config";
+import { clerkEnabled } from "@/lib/auth/magic-link";
 import { getLandingContent } from "./landing-content";
 
 /* ── Small building blocks ────────────────────────────────── */
@@ -125,7 +126,7 @@ export default async function LandingPage({
           </nav>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link
-              href={localizeHref("/auth/login", locale)}
+              href={clerkEnabled ? "/sign-in" : localizeHref("/auth/login", locale)}
               className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
             >
               {c.nav.logIn}

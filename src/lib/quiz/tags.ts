@@ -33,7 +33,6 @@ export interface TagProfile {
   needs_screen_help: boolean;
 
   // ── V4 fields ──
-  child_name: string;
   main_pain_all: string[];
   child_style: string[];
   reaction_style: string;
@@ -330,7 +329,6 @@ export function buildTagProfile(
   answers: Record<string, string | string[]>,
 ): TagProfile {
   // V4 string-keyed answers
-  const child_name = asString(answers['child-name']);
   const ageRaw = asString(answers['age']);
   const main_pain_all = asArray(answers['main-pain']);
   const main_pain = main_pain_all[0] ?? '';
@@ -395,7 +393,6 @@ export function buildTagProfile(
     needs_screen_help,
 
     // V4 fields
-    child_name,
     main_pain_all,
     child_style: childStyleAll,
     reaction_style: reactionRaw,

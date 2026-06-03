@@ -65,7 +65,7 @@ const EN: PrivacyContent = {
       list: [
         [
           { bold: "Email address" },
-          " — used for account login (magic link), subscription management, and essential service communications.",
+          " — used for account sign-in (handled by our authentication provider, Clerk), subscription management, and essential service communications.",
         ],
         [
           { bold: "Quiz answers" },
@@ -99,7 +99,7 @@ const EN: PrivacyContent = {
       heading: "How we use your data",
       list: [
         ["To generate and deliver your personalized play plan."],
-        ["To authenticate your account via magic link emails."],
+        ["To authenticate your account through Clerk-hosted sign-in."],
         ["To manage your subscription and process payments through Stripe."],
         [
           "To improve the service based on aggregate, anonymized usage patterns.",
@@ -115,6 +115,16 @@ const EN: PrivacyContent = {
       heading: "Third parties",
       list: [
         [
+          { bold: "Clerk" },
+          " — Clerk, Inc. provides our hosted sign-in and authentication. Clerk receives your email address, manages your sign-in, and stores authentication sessions and cookies on our behalf, under their own ",
+          {
+            text: "privacy policy",
+            href: "https://clerk.com/legal/privacy",
+            external: true,
+          },
+          ".",
+        ],
+        [
           { bold: "Stripe" },
           " — processes payments and manages subscriptions. Stripe receives your email and payment details under their own ",
           {
@@ -124,20 +134,18 @@ const EN: PrivacyContent = {
           },
           ".",
         ],
-        [
-          { bold: "Resend" },
-          " — delivers transactional emails (magic links). Resend receives your email address for delivery purposes only.",
-        ],
       ],
       afterList: [
-        ["We do not share your data with any other third parties."],
+        [
+          "We share data only with the processors listed above, solely to operate the service. We do not share your data with any other third parties.",
+        ],
       ],
     },
     {
       heading: "Cookies and sessions",
       paragraphs: [
         [
-          "We use a single httpOnly session cookie to keep you logged in. We also use localStorage to save quiz progress so you can resume if you leave the page. We do not use third-party tracking cookies.",
+          "Our authentication provider, Clerk, sets cookies in your browser to keep you signed in and to secure your session. We use your browser’s localStorage to save quiz progress (so you can resume if you leave the page) and to store a first-party, randomly generated analytics identifier (“tinyplan_anon_id”). This identifier lets us measure aggregate, IP-less usage of our own pages; it is not tied to your identity and is not shared with third parties. We do not use third-party advertising or tracking cookies.",
         ],
       ],
     },
@@ -226,7 +234,7 @@ const ES: PrivacyContent = {
       list: [
         [
           { bold: "Correo electrónico" },
-          " — se usa para iniciar sesión en tu cuenta (enlace mágico), gestionar la suscripción y enviarte comunicaciones esenciales del servicio.",
+          " — se usa para iniciar sesión en tu cuenta (gestionado por nuestro proveedor de autenticación, Clerk), gestionar la suscripción y enviarte comunicaciones esenciales del servicio.",
         ],
         [
           { bold: "Respuestas del test" },
@@ -260,7 +268,7 @@ const ES: PrivacyContent = {
       heading: "Cómo usamos tus datos",
       list: [
         ["Para generar y entregar tu plan de juego personalizado."],
-        ["Para autenticar tu cuenta mediante correos con enlace mágico."],
+        ["Para autenticar tu cuenta mediante el inicio de sesión alojado por Clerk."],
         ["Para gestionar tu suscripción y procesar los pagos a través de Stripe."],
         [
           "Para mejorar el servicio a partir de patrones de uso agregados y anónimos.",
@@ -276,6 +284,16 @@ const ES: PrivacyContent = {
       heading: "Terceros",
       list: [
         [
+          { bold: "Clerk" },
+          " — Clerk, Inc. proporciona nuestro inicio de sesión y autenticación alojados. Clerk recibe tu correo electrónico, gestiona tu inicio de sesión y almacena las sesiones y cookies de autenticación en nuestro nombre, conforme a su propia ",
+          {
+            text: "política de privacidad",
+            href: "https://clerk.com/legal/privacy",
+            external: true,
+          },
+          ".",
+        ],
+        [
           { bold: "Stripe" },
           " — procesa los pagos y gestiona las suscripciones. Stripe recibe tu correo electrónico y tus datos de pago conforme a su propia ",
           {
@@ -285,20 +303,18 @@ const ES: PrivacyContent = {
           },
           ".",
         ],
-        [
-          { bold: "Resend" },
-          " — entrega los correos transaccionales (enlaces mágicos). Resend recibe tu correo electrónico únicamente con fines de entrega.",
-        ],
       ],
       afterList: [
-        ["No compartimos tus datos con ningún otro tercero."],
+        [
+          "Solo compartimos datos con los proveedores indicados arriba, únicamente para operar el servicio. No compartimos tus datos con ningún otro tercero.",
+        ],
       ],
     },
     {
       heading: "Cookies y sesiones",
       paragraphs: [
         [
-          "Usamos una sola cookie de sesión httpOnly para mantener tu sesión iniciada. También usamos localStorage para guardar el progreso del test, de modo que puedas continuar si sales de la página. No usamos cookies de seguimiento de terceros.",
+          "Nuestro proveedor de autenticación, Clerk, coloca cookies en tu navegador para mantener tu sesión iniciada y protegerla. Usamos el localStorage de tu navegador para guardar el progreso del test (de modo que puedas continuar si sales de la página) y para almacenar un identificador de analítica propio, generado de forma aleatoria (“tinyplan_anon_id”). Este identificador nos permite medir el uso agregado y sin IP de nuestras propias páginas; no está vinculado a tu identidad ni se comparte con terceros. No usamos cookies de publicidad ni de seguimiento de terceros.",
         ],
       ],
     },

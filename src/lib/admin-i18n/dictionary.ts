@@ -259,7 +259,6 @@ const en: AdminDict = {
     lastActive: "Last active",
     source: "Source",
     stages: {
-      "child-name": "Child's name",
       "help-moment": "Help moment",
       email: "Email",
       "summary-1": "Summary",
@@ -378,7 +377,6 @@ const ru: AdminDict = {
     lastActive: "Последняя активность",
     source: "Источник",
     stages: {
-      "child-name": "Имя ребёнка",
       "help-moment": "Момент помощи",
       email: "Эл. почта",
       "summary-1": "Сводка",

@@ -30,4 +30,36 @@ export async function register() {
         "inaccessible to everyone. Set a comma-separated allowlist to enable it.",
     );
   }
+
+  // ── Billing preflight ────────────────────────────────────────────────────
+  // When real Stripe billing is configured, the webhook MUST be able to verify
+  // signatures (else every event is rejected and no subscription ever activates)
+  // and the paywall bypass must be off (a real key + bypass is contradictory).
+  const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
+  const paywallBypassed = process.env.DEV_BYPASS_PAYWALL === "true";
+
+  if (stripeConfigured) {
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      throw new Error(
+        "[tinyplan] STRIPE_WEBHOOK_SECRET is required in production when " +
+          "STRIPE_SECRET_KEY is set — webhook signature verification fails " +
+          "without it and subscriptions never activate.",
+      );
+    }
+    if (paywallBypassed) {
+      throw new Error(
+        "[tinyplan] DEV_BYPASS_PAYWALL=true with a real STRIPE_SECRET_KEY is " +
+          "contradictory: billing is live but the paywall is forced open. " +
+          "Unset DEV_BYPASS_PAYWALL to enforce billing.",
+      );
+    }
+  } else if (paywallBypassed) {
+    // No Stripe key + explicit bypass = the soft-launch posture. Allowed, but
+    // make it impossible to miss in the logs that the paywall is OPEN.
+    console.warn(
+      "[tinyplan] DEV_BYPASS_PAYWALL=true — the subscription paywall is " +
+        "intentionally OPEN. The entire /dashboard is reachable without an " +
+        "active subscription. Unset it (and configure Stripe) to enforce billing.",
+    );
+  }
 }

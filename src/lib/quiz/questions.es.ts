@@ -77,15 +77,6 @@ export const QUIZ_QUESTIONS_ES: QuizScreen[] = [
     ],
   },
 
-  {
-    id: 'child-name',
-    type: 'name-input',
-    stage: 'child',
-    stageLabel: 'Sobre tu peque',
-    question: '¿Cómo quieres que llamemos a tu peque en el plan?',
-    subtitle: 'Opcional. Puedes saltarlo: solo lo usamos para personalizar tu plan.',
-  },
-
   // ═══════════════════════════════════════════════════════════════════════════
   // Stage: pain (screens 3-5) — "Entendiendo tus metas"
   // ═══════════════════════════════════════════════════════════════════════════

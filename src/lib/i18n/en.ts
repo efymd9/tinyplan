@@ -83,6 +83,12 @@ export const en = {
       completionRate: "Completion",
       noData: "Complete activities to see your progress.",
     },
+    account: {
+      manageSubscription: "Manage subscription",
+      openingPortal: "Opening...",
+      noBillingAccount: "No billing account yet",
+      settingUpPlan: "Setting up your plan...",
+    },
   },
   errors: {
     generic: "Something went wrong. Please try again.",

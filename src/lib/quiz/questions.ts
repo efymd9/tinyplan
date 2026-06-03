@@ -20,7 +20,6 @@ export type ScreenType =
   | 'loading'
   | 'affirmation'
   | 'micro-insight'
-  | 'name-input'
   | 'preview';
 
 export interface QuizOption {

@@ -89,6 +89,12 @@ export const es: Dictionary = {
       completionRate: "Completado",
       noData: "Completa actividades para ver tu progreso.",
     },
+    account: {
+      manageSubscription: "Gestionar suscripción",
+      openingPortal: "Abriendo...",
+      noBillingAccount: "Aún no tienes una cuenta de facturación",
+      settingUpPlan: "Preparando tu plan...",
+    },
   },
   errors: {
     generic: "Algo salió mal. Inténtalo de nuevo.",

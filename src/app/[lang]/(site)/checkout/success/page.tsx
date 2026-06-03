@@ -9,6 +9,7 @@ import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
+const PENDING_PLAN_KEY = "tinyplan_pending_plan_id";
 
 // Checkout-success-specific copy. Shared chrome (the "Something went wrong"
 // heading, "Loading...", "Try again") comes from the dictionary via useT().
@@ -50,8 +51,10 @@ function SuccessContent() {
   const generatingRef = useRef(false);
 
   useEffect(() => {
-    track({ event: "purchase_completed", properties: { amount: 100 } });
-
+    // No quiz answers to build from (e.g. a refresh after the plan was already
+    // generated). Hand off to reveal, which tolerates a pending reclaim. We do
+    // NOT fire purchase_completed here — reaching this page is not, on its own,
+    // proof that a plan was generated this session (B4).
     if (!parsedAnswers) {
       router.replace(localizeHref("/dashboard/reveal", locale));
       return;
@@ -67,9 +70,22 @@ function SuccessContent() {
     })
       .then((res) => {
         if (!res.ok) throw new Error("Plan generation failed");
-        return res.json();
+        return res.json() as Promise<{ planId?: string }>;
       })
-      .then(() => {
+      .then((data) => {
+        // The plan was generated anonymously. Stash its id so the reclaimer
+        // (mounted in the dashboard layout) can adopt it right after sign-in.
+        if (data?.planId) {
+          try {
+            localStorage.setItem(PENDING_PLAN_KEY, data.planId);
+          } catch {
+            // localStorage may be unavailable (private mode); reveal still
+            // tolerates a missing pending id.
+          }
+        }
+        // Only now — after a confirmed, successful plan generation — record the
+        // purchase (B4: do not treat merely reaching this page as a purchase).
+        track({ event: "purchase_completed", properties: { amount: 100 } });
         sessionStorage.removeItem(RESULT_STORAGE_KEY);
         router.replace(localizeHref("/dashboard/reveal", locale));
       })

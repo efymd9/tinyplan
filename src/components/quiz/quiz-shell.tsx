@@ -17,14 +17,13 @@ import type { Dictionary } from "@/lib/i18n/en";
 
 const STORAGE_KEY = "tinyplan_quiz";
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
-const STATE_VERSION = 4;
+const STATE_VERSION = 5;
 
 interface QuizState {
   version: number;
   step: number;
   answers: Record<string, string | string[]>;
   email: string;
-  childName: string;
 }
 
 function loadState(): QuizState {
@@ -40,7 +39,7 @@ function loadState(): QuizState {
 }
 
 function freshState(): QuizState {
-  return { version: STATE_VERSION, step: 0, answers: {}, email: "", childName: "" };
+  return { version: STATE_VERSION, step: 0, answers: {}, email: "" };
 }
 
 function saveState(state: QuizState) {
@@ -200,32 +199,6 @@ export function QuizShell() {
     goNext();
   }, [state.email, track, goNext, copy.emailInvalid]);
 
-  const submitName = useCallback(
-    (skip: boolean) => {
-      if (!screen) return;
-      const next = {
-        ...state,
-        answers: {
-          ...state.answers,
-          [screen.id]: skip ? '' : state.childName.trim(),
-        },
-      };
-      persist(next);
-      track({
-        event: "quiz_step_answered",
-        properties: { step: state.step, answer: skip ? 'skipped' : 'provided' },
-      });
-      const newVisible = getVisibleScreensForLocale(next.answers, locale);
-      const nextStep = state.step + 1;
-      if (nextStep >= newVisible.length) {
-        finishQuiz(next.answers, state.email);
-        return;
-      }
-      persist({ ...next, step: nextStep });
-    },
-    [state, screen, persist, track, finishQuiz, locale]
-  );
-
   // Loading screen auto-advance
   useEffect(() => {
     if (!screen || screen.type !== "loading") return;
@@ -318,16 +291,6 @@ export function QuizShell() {
               copy={copy}
               onChange={(e) => persist({ ...state, email: e })}
               onSubmit={submitEmail}
-            />
-          ) : screen.type === "name-input" ? (
-            <NameInputScreen
-              screen={screen}
-              value={state.childName}
-              copy={copy}
-              t={t}
-              onChange={(v) => persist({ ...state, childName: v })}
-              onContinue={() => submitName(false)}
-              onSkip={() => submitName(true)}
             />
           ) : screen.type === "preview" ? (
             <PreviewScreen
@@ -534,59 +497,6 @@ function AffirmationScreen({
       <Button onClick={onContinue} size="lg" className="w-full max-w-xs">
         {t.common.continue}
       </Button>
-    </div>
-  );
-}
-
-function NameInputScreen({
-  screen,
-  value,
-  copy,
-  t,
-  onChange,
-  onContinue,
-  onSkip,
-}: {
-  screen: QuizScreen;
-  value: string;
-  copy: ShellCopy;
-  t: Dictionary;
-  onChange: (v: string) => void;
-  onContinue: () => void;
-  onSkip: () => void;
-}) {
-  return (
-    <div className="py-8 animate-slide-up">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-light to-accent/10 shadow-card flex items-center justify-center mb-5">
-        <svg className="w-7 h-7 text-accent-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
-        </svg>
-      </div>
-      <h2 className="text-2xl font-bold mb-2 leading-tight">
-        {screen.question}
-      </h2>
-      {screen.subtitle && (
-        <p className="text-muted-foreground mb-6">{screen.subtitle}</p>
-      )}
-      <div className="max-w-sm">
-        <Input
-          type="text"
-          placeholder={copy.namePlaceholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && value.trim()) onContinue();
-          }}
-        />
-        <div className="flex gap-3 mt-6">
-          <Button onClick={onContinue} disabled={!value.trim()} size="lg" className="flex-1">
-            {t.common.continue}
-          </Button>
-          <Button onClick={onSkip} variant="outline" size="lg" className="flex-1">
-            {t.common.skip}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

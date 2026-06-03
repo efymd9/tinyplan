@@ -1,234 +1,219 @@
-# Deploying TinyPlan to tinyplan.org
+# TinyPlan — Deployment & Operations
 
-A from-scratch production deploy to a single Linux VPS, keeping the local SQLite
-database, with **Clerk** auth and **Caddy** for automatic HTTPS.
+How TinyPlan is hosted at **https://tinyplan.org**, and how to operate, redeploy, and recover it.
 
-> **Why a VPS and not Vercel?** TinyPlan stores data in a local SQLite file
-> (`data/tinyplan.db`, WAL mode, opened by `src/lib/db/index.ts`). That needs a
-> persistent filesystem, which serverless platforms don't provide. The DB is
-> single-node and local — run exactly **one** instance against it.
-
-## Architecture
-
-```
-Internet ──HTTPS(443)──▶ Caddy (TLS, www→apex, HSTS) ──HTTP(127.0.0.1:3000)──▶ next start (systemd)
-                                                                                  │
-                                                                          ./data/tinyplan.db (SQLite, persistent disk)
-Auth: Clerk (hosted)   Payments: Stripe (deferred)   Email: Clerk only (Resend dropped)
-```
-
-## What only you can do (accounts/secrets)
-
-- A VPS (Hetzner / DigitalOcean / etc.), Ubuntu 24.04 LTS recommended.
-- Namecheap DNS access for **tinyplan.org**.
-- A **Clerk** account (production instance for tinyplan.org).
-- `ADMIN_EMAILS` = the email you'll sign into Clerk with (for `/admin`).
+> **Why a VPS and not Vercel?** TinyPlan stores all data in a local SQLite file (`data/tinyplan.db`, WAL mode, opened by `src/lib/db/index.ts`). That needs a persistent filesystem, which serverless platforms don't provide. The DB is single-node and local — run exactly **one** instance against it.
 
 ---
 
-## Step 1 — Provision the VPS
+## Current production topology
 
-1. Create an Ubuntu 24.04 server (1–2 vCPU / 2 GB RAM is plenty for launch). Note its **public IPv4** → `<SERVER_IP>`.
-2. SSH in and do basic hardening:
-   ```bash
-   adduser deploy && usermod -aG sudo deploy        # a sudo user (skip if your image made one)
-   ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
-   ```
-3. Create the unprivileged service user that will own the app and DB:
-   ```bash
-   sudo useradd --system --create-home --home-dir /srv/tinyplan --shell /usr/sbin/nologin tinyplan
-   ```
+TinyPlan runs on a **shared Linux VPS** that also hosts other apps — do not disturb them.
 
-## Step 2 — Point the domain at the server (Namecheap)
+| | |
+|---|---|
+| **Host** | Hostinger VPS, Ubuntu 24.04, `srv1460578.hstgr.cloud`, public IP `187.124.27.137` |
+| **App directory** | `/root/parentpath` (git branch `deploy/tinyplan-org`) |
+| **Process** | systemd unit `tinyplan.service` → `next start -H 0.0.0.0 -p 3002` (runs as `root`) |
+| **Port** | **3002** (3000 is taken by another app on this box) |
+| **Env file** | `/root/parentpath/.env.production` (chmod 600; loaded by both `next build` and `next start`) |
+| **Database** | `/root/parentpath/data/tinyplan.db` (+ `-wal`/`-shm` sidecars) |
+| **TLS / proxy** | **shared** Caddy (`/etc/caddy/Caddyfile`) — a `tinyplan.org` vhost proxies to `127.0.0.1:3002`; `www` → apex redirect. Let's Encrypt auto-cert. |
+| **Auth** | Clerk **production** instance for tinyplan.org (keys in `.env.production`; DNS CNAMEs on Namecheap) |
+| **Other apps on this box** | `keloapp.xyz` (:3000, pm2), `alinakobzar.com` (static), `partner-network`, `susurra-preview` (:3003) |
 
-Namecheap → **Domain List** → tinyplan.org → **Manage** → **Advanced DNS**.
-Delete the default "parking" / CNAME records, then add:
+The Clerk integration, the `:3002` service, and the appended Caddy vhost are the only TinyPlan-owned pieces. Everything else on the box belongs to other projects.
 
-| Type     | Host  | Value         | TTL       |
-| -------- | ----- | ------------- | --------- |
-| A Record | `@`   | `<SERVER_IP>` | Automatic |
-| A Record | `www` | `<SERVER_IP>` | Automatic |
+---
 
-(The apex `@` can't be a CNAME, so `www` uses an A record too; Caddy redirects www→apex.)
+## DNS (Namecheap)
 
-Verify propagation (can take 5–30 min):
-```bash
-dig +short tinyplan.org      # should print <SERVER_IP>
-dig +short www.tinyplan.org  # should print <SERVER_IP>
-```
+`tinyplan.org` uses Namecheap BasicDNS (`dns1/dns2.registrar-servers.com`). Required records:
 
-> Keep the **Clerk CNAMEs from Step 3** in mind — you'll add them to this same
-> Advanced DNS page.
+| Type | Host | Value |
+|---|---|---|
+| A | `@` | `187.124.27.137` |
+| A | `www` | `187.124.27.137` |
+| CNAME | `clerk` | (from Clerk dashboard, e.g. `frontend-api.clerk.services`) |
+| CNAME | `accounts` | `accounts.clerk.services` |
+| CNAME | `clkmail` | `mail.<id>.clerk.services` |
+| CNAME | `clk._domainkey` | `dkim1.<id>.clerk.services` |
+| CNAME | `clk2._domainkey` | `dkim2.<id>.clerk.services` |
 
-## Step 3 — Set up the Clerk production instance
+The Clerk CNAME targets are **instance-specific** — copy the exact values from the Clerk dashboard → Domains. The `clerk.`/`accounts.` subdomains are needed for browser sign-in to work.
 
-1. In [dashboard.clerk.com](https://dashboard.clerk.com), create/select your app and switch to a **Production** instance.
-2. Set the production domain to **tinyplan.org**.
-3. Clerk shows a set of DNS records to add (they are **instance-specific — copy the exact host/target from your dashboard**, don't hardcode). They typically look like:
+> **Namecheap gotcha:** a leftover **URL Redirect Record** on `@` silently overrides any A record (the apex stays on Namecheap's `192.64.119.x` forwarding IP). Delete the URL Redirect Record first, then add the A record, and click the green ✓ to save each row. Verify from the source: `dig +short @dns1.registrar-servers.com tinyplan.org A` should return `187.124.27.137`.
 
-   | Type  | Host (Namecheap)      | Value (from Clerk)            |
-   | ----- | --------------------- | ----------------------------- |
-   | CNAME | `clerk`               | `frontend-api.clerk.services` |
-   | CNAME | `accounts`            | `accounts.clerk.services`     |
-   | CNAME | `clkmail`             | `mail.…clerk.services`        |
-   | CNAME | `clk._domainkey`      | `dkim1.…clerk.services`       |
-   | CNAME | `clk2._domainkey`     | `dkim2.…clerk.services`       |
+---
 
-   Add each on the Namecheap **Advanced DNS** page (Host = the left label, no domain suffix). Wait until Clerk marks the domain **Verified**.
-4. In Clerk → **Paths**, set Sign-in = `/sign-in`, Sign-up = `/sign-up`, and the after-auth redirect to `/dashboard/today`. Add `https://tinyplan.org` as an allowed origin.
-5. From **API Keys**, copy the production **`pk_live_…`** and **`sk_live_…`** — you'll paste them into `.env.production` (Step 5).
+## Configuration: `/root/parentpath/.env.production`
 
-## Step 4 — Install the runtime
-
-```bash
-# Node 22 (matches the build ABI for better-sqlite3) via NodeSource
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Build tools (fallback if no better-sqlite3 prebuilt binary matches) + sqlite3 CLI for backups
-sudo apt-get install -y build-essential python3 sqlite3 git
-
-# Caddy (automatic HTTPS)
-sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt-get update && sudo apt-get install -y caddy
-
-node -v   # expect v22.x
-```
-
-## Step 5 — Get the code and configure env
-
-```bash
-sudo -u tinyplan -H bash
-cd /srv/tinyplan
-git clone <YOUR_REPO_URL> .          # or rsync your repo here
-cp .env.example .env.production
-chmod 600 .env.production
-nano .env.production
-```
-
-Fill in `.env.production` (see comments in the file). At minimum for this deploy:
+`next build` **and** `next start` both load this file (Next loads `.env.production` when `NODE_ENV=production`). `NEXT_PUBLIC_*` values are **inlined at build time** — changing them requires a rebuild. Keep it `chmod 600`. The required set:
 
 ```ini
 NEXT_PUBLIC_APP_URL=https://tinyplan.org
 NODE_ENV=production
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_…   # from Clerk
-CLERK_SECRET_KEY=sk_live_…                     # from Clerk
-AUTH_SECRET=…                                  # openssl rand -base64 48
-ADMIN_EMAILS=you@tinyplan.org                  # the email you sign into Clerk with
-DEV_BYPASS_PAYWALL=true                        # soft launch: mock checkout, no real charges
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_…     # Clerk production
+CLERK_SECRET_KEY=sk_live_…                       # Clerk production (runtime)
+AUTH_SECRET=…                                    # openssl rand -hex 48
+ADMIN_EMAILS=you@example.com                     # the email you sign into Clerk with
+DEV_BYPASS_PAYWALL=true                          # soft launch: mock checkout, no real charges
 ```
 
-> `NEXT_PUBLIC_*` values are **baked into the build** — they must be correct
-> *before* `npm run build`. Next loads `.env.production` automatically for both
-> build and start, so having this file in place is enough.
+See [`.env.example`](.env.example) for the full annotated list. **Never** copy a dev `.env.local` here — Next ranks `.env.local` *above* `.env.production`, so it would silently override prod config.
 
-> ⚠️ **Do NOT copy your dev `.env.local` to the server.** Next ranks `.env.local`
-> *above* `.env.production`, so a stray dev file (with `http://…` URLs and
-> `DEV_BYPASS_*=true`) would silently override production config and open the
-> paywall / break links. A clean `git clone` won't include it (it's gitignored) —
-> just don't rsync it. Verify on the server: `ls -la .env.local` should be "No such file".
-
-## Step 6 — Build and run under systemd
-
-```bash
-# As the tinyplan user, in /srv/tinyplan:
-npm ci            # installs deps AND compiles better-sqlite3 for THIS server's Node
-npm run build     # fails fast if NEXT_PUBLIC_APP_URL/Clerk key are missing (by design)
-exit              # back to your sudo user
-
-# Install the service
-sudo cp /srv/tinyplan/deploy/tinyplan.service /etc/systemd/system/tinyplan.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now tinyplan
-sudo systemctl status tinyplan      # should be active (running)
-curl -I http://127.0.0.1:3000/      # should return a redirect to /es
-```
-
-If the service fails to start, the most common cause is a missing `CLERK_SECRET_KEY`
-(the app aborts on purpose — see `src/instrumentation.ts`). Check `journalctl -u tinyplan -e`.
-
-## Step 7 — TLS and the reverse proxy (Caddy)
-
-```bash
-sudo cp /srv/tinyplan/deploy/Caddyfile /etc/caddy/Caddyfile
-sudo sed -i 's/you@example.com/your-real-email@example.com/' /etc/caddy/Caddyfile
-sudo mkdir -p /var/log/caddy
-sudo systemctl reload caddy
-journalctl -u caddy -f              # watch it obtain the Let's Encrypt cert
-```
-
-Caddy needs the apex A record (Step 2) already pointing here to get the cert.
-
-## Step 8 — Verify the deploy
-
-```bash
-curl -I https://tinyplan.org/                 # 200/308 → /es, valid TLS
-curl -sI https://tinyplan.org/ | grep -i strict-transport   # HSTS present
-curl -I https://www.tinyplan.org/             # 301 → https://tinyplan.org
-```
-
-Then in a browser:
-- `https://tinyplan.org` → redirects to `/es`, landing page loads.
-- Take the quiz → result → pricing → "checkout" returns to the success page (mock, soft launch).
-- `https://tinyplan.org/sign-in` → Clerk sign-in renders. Sign up, then `/dashboard/today` loads.
-- `https://tinyplan.org/admin` → reachable only when signed in as an `ADMIN_EMAILS` address; everyone else is redirected.
-
-Confirm the production build didn't bake in a wrong URL:
-```bash
-grep -r "localhost:3000\|187\.124\.27\.137" /srv/tinyplan/.next/server | head   # expect no output
-```
-
-## Step 9 — Backups
-
-```bash
-sudo chmod +x /srv/tinyplan/deploy/backup-db.sh
-sudo -u tinyplan crontab -e
-# add:
-0 3 * * *  /srv/tinyplan/deploy/backup-db.sh >> /srv/tinyplan/backups/backup.log 2>&1
-```
-
-This takes a WAL-safe nightly snapshot to `/srv/tinyplan/backups`, keeping 14. Copy them off-box periodically.
+The repo's startup guards will stop a misconfigured deploy loudly: `next.config.ts` fails the build unless `NEXT_PUBLIC_APP_URL` is `https://` and the Clerk key is `pk_…`; `src/instrumentation.ts` aborts startup if `CLERK_SECRET_KEY` is missing while Clerk is enabled. (Bypass for a one-off non-prod build with `SKIP_ENV_VALIDATION=1`.)
 
 ---
 
-## Redeploying after code changes
+## Operations
+
+### Redeploy after code changes
+```bash
+cd /root/parentpath
+git pull                 # or apply changes
+npm ci                   # only if dependencies changed
+npm run build            # loads .env.production; rebuild is REQUIRED for any NEXT_PUBLIC_* change
+systemctl restart tinyplan
+```
+Verify: `curl -sI https://tinyplan.org/` → `307` to `/es`, valid TLS.
+
+> Always **build then restart**. A running `next start` reads content-hashed chunks from `.next` lazily; rebuilding underneath it makes live clients hit `ChunkLoadError`. The restart loads the fresh build cleanly.
+
+### Service management
+```bash
+systemctl status tinyplan        # state
+systemctl restart tinyplan       # restart
+journalctl -u tinyplan -f        # follow logs
+journalctl -u tinyplan -n 50     # recent logs
+curl -sI http://127.0.0.1:3002/  # health on the loopback (expect 307)
+```
+The unit lives at `/etc/systemd/system/tinyplan.service` (mirrored in [`deploy/tinyplan.service`](deploy/tinyplan.service)). After editing it: `systemctl daemon-reload && systemctl restart tinyplan`.
+
+### Editing the shared Caddy config — carefully
+`/etc/caddy/Caddyfile` serves **multiple sites**. Never overwrite it. To change TinyPlan's vhost:
+```bash
+cp -a /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak.$(date +%F-%H%M%S)   # backup first
+# edit the tinyplan.org / www.tinyplan.org blocks only
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile          # MUST pass before reload
+systemctl reload caddy            # graceful; if it sticks in "reloading", systemctl restart caddy
+```
+TinyPlan's blocks (see [`deploy/Caddyfile`](deploy/Caddyfile)):
+```caddy
+tinyplan.org {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3002
+  header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  header X-Content-Type-Options "nosniff"
+  header Referrer-Policy "strict-origin-when-cross-origin"
+}
+www.tinyplan.org {
+  redir https://tinyplan.org{uri} permanent
+}
+```
+> **Caddy gotcha:** do **not** add a `log { output file … }` block pointing at a new file — the `caddy` user can append to existing files in `/var/log/caddy` but cannot create new ones, so the reload fails with `permission denied` and the new config never applies. TinyPlan logs to journald (`journalctl -u caddy`).
+
+### Backups
+The DB is a single SQLite file. Use a WAL-safe online backup (never a raw `cp` of just the `.db`):
+```bash
+# manual
+sqlite3 /root/parentpath/data/tinyplan.db ".backup '/root/backups/tinyplan-$(date +%F).db'"
+```
+[`deploy/backup-db.sh`](deploy/backup-db.sh) does this with rotation. To schedule nightly:
+```bash
+chmod +x /root/parentpath/deploy/backup-db.sh
+crontab -e
+# 0 3 * * *  /root/parentpath/deploy/backup-db.sh >> /root/backups/backup.log 2>&1
+```
+Copy backups off-box periodically. `analytics_events` grows unbounded — prune/rotate if it gets large.
+
+### Honoring data-deletion requests (GDPR / CCPA / PIPEDA / COPPA)
+
+The privacy policy commits to honoring deletion requests **within 30 days**. TinyPlan stores a parent's data in two systems, so a complete erasure is **two steps**:
+
+1. **Local database** — the SQLite file (`data/tinyplan.db`): quiz answers, plans, day logs, check-ins, payments, analytics, and the `users` row.
+2. **Clerk** — the parent's identity (email + auth credentials), held by Clerk, **not** in the local DB.
+
+#### Step 1 — delete the local data with the operator tool
+
+[`deploy/delete-user.sh`](deploy/delete-user.sh) (wrapping [`scripts/delete-user.mjs`](scripts/delete-user.mjs)) removes **all** of one user's rows from the local DB, in foreign-key-safe order, inside a single transaction.
+
+**Always preview with `--dry-run` first** (read-only, makes no changes), confirm the counts look right, then re-run for real:
 
 ```bash
-sudo -u tinyplan -H bash -c '
-  cd /srv/tinyplan &&
-  git pull &&
-  npm ci &&
-  npm run build
-'
-sudo systemctl restart tinyplan
+cd /root/parentpath
+
+# 1) Preview — read-only, no changes:
+deploy/delete-user.sh --email parent@example.com --dry-run
+
+# 2) Delete for real — prompts you to retype the email to confirm:
+deploy/delete-user.sh --email parent@example.com
+
+# You can target by user id instead of email:
+deploy/delete-user.sh --user-id <uuid> --dry-run
 ```
 
-Rebuild is **required** whenever any `NEXT_PUBLIC_*` value changes (they're frozen at build time).
+Useful flags: `--yes` skips the confirmation prompt (for scripted runs); `--db <path>` points at a different DB file. A real delete runs `wal_checkpoint(TRUNCATE)` afterward so the change is reflected in the main `.db` file (and the next backup) immediately. Take a [backup](#backups) before a live delete if you want a rollback point.
 
-## Turning on real billing later (currently deferred)
+**What it covers** — every user-keyed table, deleted in this order:
 
-When you're ready to charge:
-1. Set `STRIPE_SECRET_KEY=sk_live_…` in `.env.production` and **remove** `DEV_BYPASS_PAYWALL`.
-2. Implement the Stripe **webhook route** (not built yet) so paid users get `subscription_status` updated — `verifyWebhookSignature()` already exists in `src/lib/payments/stripe.ts`; it just needs a `POST /api/webhooks/stripe` handler. Then set `STRIPE_WEBHOOK_SECRET=whsec_…`.
+| Table | Matched by |
+|---|---|
+| `plan_day_logs` | the user's `plans` (`plan_id`) |
+| `weekly_checkins` | `user_id` |
+| `plans` | `user_id` |
+| `quiz_sessions` | `user_id` **and** transitively via `plans.quiz_session_id` — in the anonymous quiz→checkout funnel `quiz_sessions.user_id` is often `NULL`, so following the plan link is what actually catches the parent's quiz answers |
+| `payments` | `user_id` |
+| `analytics_events` | `user_id` (anonymous, `session_id`-only events have no `user_id` and are not PII) |
+| `auth_tokens` | `user_id` (legacy magic-link) |
+| `users` | the row itself, deleted last |
+
+If the email/id resolves to no `users` row, the tool exits cleanly with a note — a parent who quizzed but never signed in may have only an **anonymous** plan/session that cannot be tied back to them.
+
+#### Step 2 — delete the user in Clerk (REQUIRED — not done by the tool)
+
+> **Do not skip this.** The local tool cannot touch Clerk. Until you remove the user in Clerk, their **email and auth identity still exist** and the request is **not** fully honored.
+
+Delete them via **Clerk Dashboard → Users → (search the email) → Delete user**, or via the [Clerk Backend API](https://clerk.com/docs/reference/backend-api) (`DELETE /v1/users/{user_id}` with the production `CLERK_SECRET_KEY`). Clerk also sends/holds the auth email, so this is the only place that identity lives once Step 1 is done.
+
+Completing both steps satisfies the 30-day deletion commitment in the privacy policy.
+
+---
+
+## Going live with real billing (currently deferred)
+
+Billing is in **soft-launch** mode (`DEV_BYPASS_PAYWALL=true` → mock checkout, no real charges, paywall effectively open). To charge for real:
+1. **Build the missing webhook.** Add `POST /api/webhooks/stripe` that reads the raw body, calls `verifyWebhookSignature()` (already in `src/lib/payments/stripe.ts`), and on `checkout.session.completed` / `customer.subscription.*` updates `users.subscription_status` (and writes a `payments` row). Until this exists, no payment ever marks a user paid.
+2. Set `STRIPE_SECRET_KEY=sk_live_…` and `STRIPE_WEBHOOK_SECRET=whsec_…` in `.env.production`; **remove** `DEV_BYPASS_PAYWALL`.
 3. Register `https://tinyplan.org/api/webhooks/stripe` in the Stripe dashboard.
-4. `npm run build && sudo systemctl restart tinyplan`.
+4. `npm run build && systemctl restart tinyplan`.
 
-## (Optional) Working contact email
+---
 
-`hello@tinyplan.org` (shown in the footer/terms/privacy) won't receive mail until
-you set it up. Easiest: Namecheap → Domain → **Email Forwarding**, forward
-`hello@tinyplan.org` to your inbox.
+## Disaster recovery — stand it up again
+
+On a fresh Ubuntu box (or after a wipe):
+1. Install: `Node 22` (NodeSource), `build-essential python3` (for the better-sqlite3 native build), `sqlite3`, and `caddy`.
+2. `git clone` the repo to the app dir; `cp` your saved `.env.production` in (and restore the latest DB backup to `data/tinyplan.db`).
+3. `npm ci && npm run build`.
+4. Install `deploy/tinyplan.service` → `/etc/systemd/system/`, adjust `WorkingDirectory`/port if needed, `systemctl enable --now tinyplan`.
+5. Add the `tinyplan.org` vhost from `deploy/Caddyfile` to your Caddyfile, `caddy validate`, `systemctl reload caddy`.
+6. Point DNS (apex + www A records, Clerk CNAMEs) at the new IP.
+
+`npm ci` rebuilds the `better-sqlite3` native addon for the box's Node/arch — do **not** copy `node_modules` from another machine.
+
+---
 
 ## Troubleshooting
 
 | Symptom | Cause / fix |
-| --- | --- |
-| Every page 500s | Clerk keys invalid/mismatched. Check `pk_live`/`sk_live` are from the **same** Clerk production instance. |
-| Service won't start, log says `CLERK_SECRET_KEY is required` | Add it to `.env.production`, `systemctl restart tinyplan`. |
-| `npm run build` throws about `NEXT_PUBLIC_APP_URL`/Clerk key | Intended guard — set them in `.env.production` (or `SKIP_ENV_VALIDATION=1` to bypass). |
-| Emails/links point at localhost | Rebuild — `NEXT_PUBLIC_APP_URL` was wrong at build time. |
-| Clerk sign-in shows a domain error | The Clerk production domain isn't Verified yet, or the CNAMEs aren't propagated. |
-| Data disappeared after a restart | `WorkingDirectory` in the systemd unit isn't the repo root, so `./data` resolved elsewhere. |
-| `/admin` redirects you away | Your Clerk email isn't in `ADMIN_EMAILS` (fail-closed by design). |
+|---|---|
+| Every page 500s | Clerk keys invalid/mismatched, or `CLERK_SECRET_KEY` missing → `journalctl -u tinyplan -e`. Both keys must be from the **same** Clerk production instance. |
+| Service crash-loops on restart | The build was made with wrong/placeholder Clerk env. Rebuild with the real `.env.production`, then restart. |
+| `npm run build` throws about `NEXT_PUBLIC_APP_URL`/Clerk key | Intended guard — fix `.env.production` (or `SKIP_ENV_VALIDATION=1` to bypass). |
+| Links/emails point at localhost or the wrong host | Rebuilt without the right `NEXT_PUBLIC_APP_URL`; rebuild. |
+| `tinyplan.org` TLS "internal error" | Caddy has no cert yet — check the apex A record points here and `journalctl -u caddy | grep -i tinyplan`. |
+| Caddy stuck "reloading" after an edit | A bad block (often a `log` file permission). Fix the config, `caddy validate`, then `systemctl restart caddy`. |
+| Clerk sign-in fails in the browser | Clerk production domain not verified, or the `clerk.`/`accounts.` CNAMEs not propagated. |
+| Data disappeared after a restart | `WorkingDirectory` isn't the app root, so `./data` resolved elsewhere. It must be `/root/parentpath`. |
+| `/admin` redirects you away | Your Clerk email isn't in `ADMIN_EMAILS` (fail-closed). |

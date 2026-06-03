@@ -1,8 +1,9 @@
-import { getCurrentUser } from "@/lib/auth/magic-link";
+import { getCurrentUser, clerkEnabled } from "@/lib/auth/magic-link";
 import { getActivePlan, parseWeeklyPlan, localizePlan } from "@/lib/dashboard/helpers";
 import { deriveRoutine, localizeRoutine } from "@/lib/routines/routines";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { PendingPlanGate } from "@/components/dashboard/plan-reclaimer";
 import { Button } from "@/components/ui/button";
 import { ProfileIllustration, SpotIcon } from "@/components/illustrations/activity-illustrations";
 import { localizeHref } from "@/lib/i18n/href";
@@ -38,6 +39,7 @@ const COPY = {
     yourRoutine: "Tu rutina esta semana",
     startDay1: "Empezar el Día 1",
     viewFullWeek: "Ver la semana completa",
+    settingUp: "Preparando tu plan…",
     // fallback summary builders
     youToldUsPriority: (g: string) => `${g} es tu prioridad`,
     youToldUsBestTime: (m: string) => `${m} es tu mejor momento`,
@@ -64,6 +66,7 @@ const COPY = {
     yourRoutine: "Your Routine This Week",
     startDay1: "Start Day 1",
     viewFullWeek: "View full week",
+    settingUp: "Setting up your plan…",
     youToldUsPriority: (g: string) => `${g} is your priority`,
     youToldUsBestTime: (m: string) => `${m} is your best time`,
     youToldUsPrefer: (s: string) => `you prefer ${s}`,
@@ -124,10 +127,23 @@ export default async function PlanRevealPage({
   const locale = resolveLocale(lang);
   const copy = COPY[locale];
   const user = await getCurrentUser();
-  if (!user) redirect(localizeHref("/auth/login", locale));
+  if (!user) redirect(clerkEnabled ? "/sign-in" : localizeHref("/auth/login", locale));
 
   const plan = getActivePlan(user.id);
-  if (!plan) redirect(localizeHref("/quiz", locale));
+  if (!plan) {
+    // A just-checked-out user can land here before the dashboard-mounted
+    // <PlanReclaimer> has adopted their anonymous plan. Don't hard-bounce to the
+    // quiz: if a pending plan id exists in the browser, show a brief spinner and
+    // wait for the reclaimer's refresh to bring the adopted plan into view.
+    // Only when there is genuinely nothing pending does the gate send them to
+    // the quiz. (The redirect happens client-side inside the gate.)
+    return (
+      <PendingPlanGate
+        settingUpLabel={copy.settingUp}
+        quizHref={localizeHref("/quiz", locale)}
+      />
+    );
+  }
 
   const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
   const activityCount = weeklyPlan.days.length;

@@ -21,10 +21,46 @@ export const PRICE_DISPLAY = {
   currency: 'USD',
 } as const;
 
+// Amounts in cents. The introductory charge collected up-front and the
+// recurring monthly price the subscription renews at after the intro window.
+const INTRO_AMOUNT_CENTS = 100; // $1.00
+const MONTHLY_AMOUNT_CENTS = 1499; // $14.99
+const INTRO_DAYS = 7;
+
 /**
  * Create a Stripe checkout session for the subscription.
  *
- * $1 for 7 days, then $14.99/month.
+ * ─────────────────────────────────────────────────────────────────────────
+ * PRICING MODEL — "$1 for 7 days, then $14.99/month"
+ * ─────────────────────────────────────────────────────────────────────────
+ * ONE coherent subscription is created: a single recurring $14.99/month Price
+ * with a 7-day trial, plus a one-time $1 "intro" charge collected up-front so
+ * the customer pays something today (the advertised "$1 for 7 days").
+ *
+ * EXACT charge timeline this produces:
+ *   • Today (checkout completes):  $1.00 charged immediately.
+ *       - In subscription mode, the one-time line item is collected up-front
+ *         (the customer enters a card and the $1 is captured now), while the
+ *         recurring $14.99 line item is placed on trial for 7 days.
+ *   • Days 0–7:                    Subscription is in `trialing` status; the
+ *                                  customer has full access; nothing further
+ *                                  is charged.
+ *   • Day 7 (trial end):           First recurring invoice for $14.99 is
+ *                                  finalized and charged; status → `active`.
+ *   • Every month after:           $14.99 charged on the renewal date.
+ *
+ * Net: $1 today, then $14.99/month starting one week later — matching the
+ * pricing copy. The subscription carries `metadata.userId` so the webhook can
+ * resolve the local user even when no customer email is available.
+ *
+ * VALIDATED in Stripe TEST MODE (test clock, 2026-06-03): the one-time $1 line
+ * item IS captured at checkout — it produces a `subscription_create` invoice of
+ * $1.00 paid on day 0, the recurring price stays `trialing`, and a separate
+ * `subscription_cycle` invoice of $14.99 is paid at trial end (~day 7), after
+ * which status → `active`. The Checkout Session's amount_total at creation is
+ * $1.00. So the charge schedule matches the pricing copy exactly — there is NO
+ * $15.99 day-7 surprise. Re-confirm once against the LIVE account before the
+ * first real charge (account-level invoice settings can in theory differ).
  *
  * When STRIPE_SECRET_KEY is not set, returns a mock result so local
  * development works without a Stripe account.
@@ -63,10 +99,16 @@ export async function createCheckoutSession(
   // ── Real Stripe checkout session ────────────────────────────────────────
   const stripe = new Stripe(secretKey);
 
+  const metadata = {
+    userId: config.userId,
+    ...(config.quizSessionId ? { quizSessionId: config.quizSessionId } : {}),
+  };
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
-    customer_email: config.userEmail,
+    customer_email: config.userEmail || undefined,
     line_items: [
+      // One-time $1 intro charge collected up-front ("$1 for 7 days").
       {
         price_data: {
           currency: 'usd',
@@ -75,49 +117,65 @@ export async function createCheckoutSession(
             description:
               '7-day introductory access to your personalised weekly activity plans.',
           },
-          unit_amount: 100,
+          unit_amount: INTRO_AMOUNT_CENTS,
         },
         quantity: 1,
       },
+      // Recurring $14.99/month — placed on a 7-day trial below.
       {
         price_data: {
           currency: 'usd',
           product_data: {
             name: 'TinyPlan Monthly',
             description:
-              'Personalised weekly activity plans for your child — $14.99/month after introductory period.',
+              'Personalised weekly activity plans for your child — $14.99/month after your 7-day intro.',
           },
-          unit_amount: 1499,
+          unit_amount: MONTHLY_AMOUNT_CENTS,
           recurring: { interval: 'month' },
         },
         quantity: 1,
       },
     ],
     subscription_data: {
-      trial_period_days: 7,
-      metadata: {
-        userId: config.userId,
-        ...(config.quizSessionId
-          ? { quizSessionId: config.quizSessionId }
-          : {}),
-      },
+      // 7-day trial on the recurring price → first $14.99 invoice lands on day 7.
+      trial_period_days: INTRO_DAYS,
+      // metadata.userId is the primary key the webhook resolves the local user by.
+      metadata,
     },
     success_url: config.successUrl.includes('{CHECKOUT_SESSION_ID}')
       ? config.successUrl
       : config.successUrl + '?session_id={CHECKOUT_SESSION_ID}',
     cancel_url: config.cancelUrl,
-    metadata: {
-      userId: config.userId,
-      ...(config.quizSessionId
-        ? { quizSessionId: config.quizSessionId }
-        : {}),
-    },
+    metadata,
   });
 
   return {
     url: session.url!,
     sessionId: session.id,
   };
+}
+
+/**
+ * Create a Stripe Billing Portal session so a customer can manage / cancel
+ * their subscription and update payment details. Requires a Stripe customer id
+ * (set on the local user by the webhook after the first paid event).
+ */
+export async function createBillingPortalSession(params: {
+  customerId: string;
+  returnUrl: string;
+}): Promise<{ url: string }> {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY.');
+  }
+
+  const stripe = new Stripe(secretKey);
+  const session = await stripe.billingPortal.sessions.create({
+    customer: params.customerId,
+    return_url: params.returnUrl,
+  });
+
+  return { url: session.url };
 }
 
 /**

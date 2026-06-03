@@ -73,7 +73,7 @@ const EN: TermsContent = {
       heading: "Account and access",
       paragraphs: [
         [
-          "You log in using a magic link sent to your email address. You are responsible for maintaining access to your email account. Each account is for personal, non-commercial use by a single household.",
+          "You sign in through Clerk-hosted authentication using your email address. You are responsible for maintaining access to your email account. Each account is for personal, non-commercial use by a single household.",
         ],
       ],
     },
@@ -215,7 +215,7 @@ const ES: TermsContent = {
       heading: "Cuenta y acceso",
       paragraphs: [
         [
-          "Inicias sesión mediante un enlace mágico que se envía a tu correo electrónico. Eres responsable de mantener el acceso a tu cuenta de correo. Cada cuenta es para uso personal y no comercial de un solo hogar.",
+          "Inicias sesión mediante la autenticación alojada por Clerk usando tu correo electrónico. Eres responsable de mantener el acceso a tu cuenta de correo. Cada cuenta es para uso personal y no comercial de un solo hogar.",
         ],
       ],
     },

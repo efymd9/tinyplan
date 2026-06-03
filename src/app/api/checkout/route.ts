@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const user = await getCurrentUser();
     const userId = user?.id || uuid();
-    const userEmail = user?.email || email || "";
+    const userEmail = (user?.email || email || "").trim().toLowerCase();
 
     const locale = resolveLocale((await cookies()).get("tinyplan_locale")?.value);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

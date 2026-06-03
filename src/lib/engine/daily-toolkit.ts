@@ -30,7 +30,6 @@ export interface ToolkitContext {
   mainPainAll?: string[];
   routineMoment: string;
   ageRange?: string;
-  childName?: string;
   isLowEnergy?: boolean;
   needsScripts?: boolean;
   parentConstraints?: string[];

@@ -341,7 +341,6 @@ export default async function ProgressPage({
       mainPainAll: tagProfile.main_pain_all,
       routineMoment: tagProfile.routine_moment,
       ageRange: tagProfile.age_range,
-      childName: tagProfile.child_name,
       isLowEnergy: tagProfile.is_low_energy,
       needsScripts: tagProfile.needs_scripts,
       parentConstraints: tagProfile.parent_constraint,
