@@ -371,8 +371,9 @@ export default async function TodayPage({
   if (!user) return null;
 
   const plan = getActivePlan(user.id);
+  const parsedPlan = plan ? parseWeeklyPlan(plan.plan_json, plan.id) : null;
 
-  if (!plan) {
+  if (!plan || !parsedPlan) {
     return (
       <div className="max-w-md mx-auto text-center py-16 animate-fade-up">
         <div className="w-16 h-16 rounded-full bg-primary-light flex items-center justify-center mx-auto mb-5">
@@ -390,7 +391,7 @@ export default async function TodayPage({
     );
   }
 
-  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
+  const weeklyPlan = localizePlan(parsedPlan, locale);
   const dayNumber = getTodayDayNumber(plan.created_at!);
   const todayPlan = weeklyPlan.days.find((d) => d.dayNumber === dayNumber);
   const tomorrowPlan = weeklyPlan.days.find((d) => d.dayNumber === dayNumber + 1);

@@ -87,7 +87,6 @@ export const en = {
       manageSubscription: "Manage subscription",
       openingPortal: "Opening...",
       noBillingAccount: "No billing account yet",
-      settingUpPlan: "Setting up your plan...",
     },
   },
   errors: {

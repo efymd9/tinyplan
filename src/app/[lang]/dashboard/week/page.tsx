@@ -267,8 +267,9 @@ export default async function WeekPage({
   if (!user) return null;
 
   const plan = getActivePlan(user.id);
+  const parsedPlan = plan ? parseWeeklyPlan(plan.plan_json, plan.id) : null;
 
-  if (!plan) {
+  if (!plan || !parsedPlan) {
     return (
       <div className="max-w-md mx-auto text-center py-16 animate-fade-up">
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-light to-primary-light/50 flex items-center justify-center mx-auto mb-5 shadow-xs">
@@ -285,7 +286,7 @@ export default async function WeekPage({
     );
   }
 
-  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
+  const weeklyPlan = localizePlan(parsedPlan, locale);
   const dayLogs = getDayLogs(plan.id);
   const todayDayNumber = getTodayDayNumber(plan.created_at!);
   const logMap = new Map(dayLogs.map((l) => [l.day_number, l.status]));

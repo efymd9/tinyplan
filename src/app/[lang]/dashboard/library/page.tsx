@@ -139,8 +139,9 @@ export default async function LibraryPage({
   let todayActivityId: string | null = null;
   const completedIds = new Set<string>();
 
-  if (plan) {
-    const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
+  const parsedPlan = plan ? parseWeeklyPlan(plan.plan_json, plan.id) : null;
+  if (plan && parsedPlan) {
+    const weeklyPlan = localizePlan(parsedPlan, locale);
     planItems = weeklyPlan.days.map((d) =>
       planActivityToLibraryItem(d.activity, d.dayNumber),
     );

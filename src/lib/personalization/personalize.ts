@@ -128,7 +128,7 @@ const PAIN_CONTEXT: Record<string, string> = {
     "Your family's hardest moment is when screens go off.",
   transitions:
     "Your family's trickiest moments are transitions between activities.",
-  play_ideas:
+  no_ideas:
     'You mentioned running out of play ideas during the week.',
   boredom:
     'You said boredom and restlessness are a challenge right now.',
@@ -257,7 +257,7 @@ export function generateWhatToNotice(
 const HARD_MOMENT_DISPLAY: Record<string, string> = {
   screen_time: 'Screen time endings',
   transitions: 'Tricky transitions',
-  play_ideas: 'Running out of play ideas',
+  no_ideas: 'Running out of play ideas',
   boredom: 'Boredom and restlessness',
   independent_play: 'Getting independent play started',
   bedtime: 'Bedtime struggles',
@@ -267,7 +267,7 @@ const HARD_MOMENT_DISPLAY: Record<string, string> = {
 const HARD_MOMENT_DISPLAY_ES: Record<string, string> = {
   screen_time: 'El fin del tiempo de pantalla',
   transitions: 'Transiciones difíciles',
-  play_ideas: 'Quedarte sin ideas de juego',
+  no_ideas: 'Quedarte sin ideas de juego',
   boredom: 'Aburrimiento e inquietud',
   independent_play: 'Lograr que empiece el juego independiente',
   bedtime: 'Las dificultades a la hora de dormir',

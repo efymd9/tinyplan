@@ -4,7 +4,7 @@
 // Skip / Loading / error messages) comes from the typed dictionary via `useT()`.
 // This module holds only the copy that is unique to the quiz shell and not
 // present in the quiz screen data itself (email-capture screen, validation,
-// preview / name-input labels, "select up to N", progress counter, etc.).
+// preview labels, "select up to N", progress counter, etc.).
 //
 // Neutral Latin American Spanish, informal "tú", warm and encouraging.
 // "TinyPlan" is never translated.
@@ -25,8 +25,6 @@ const COPY = {
     saveMyPlan: "Guardar mi plan",
     privacyNote: "Cuidamos tus datos.",
     privacyLink: "Política de privacidad",
-    // Name-input screen
-    namePlaceholder: "Nombre o apodo",
     // Preview screen
     previewSubtitle: "Según tus respuestas, estamos creando:",
     previewImageAlt: "Descubriendo el perfil de juego único de tu peque",
@@ -44,8 +42,6 @@ const COPY = {
     saveMyPlan: "Save my plan",
     privacyNote: "We respect your data.",
     privacyLink: "Privacy Policy",
-    // Name-input screen
-    namePlaceholder: "First name or nickname",
     // Preview screen
     previewSubtitle: "Based on your answers, we're building:",
     previewImageAlt: "Discovering your child's unique play profile",

@@ -12,8 +12,20 @@ export async function generateMetadata({
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  const meta = termsMeta[resolveLocale(lang)];
-  return { title: meta.title, description: meta.description };
+  const locale = resolveLocale(lang);
+  const meta = termsMeta[locale];
+  return {
+    title: meta.title,
+    description: meta.description,
+    alternates: {
+      canonical: `/${locale}/terms`,
+      languages: {
+        es: "/es/terms",
+        en: "/en/terms",
+        "x-default": "/es/terms",
+      },
+    },
+  };
 }
 
 /** Render a run of inline content (text, bold, links) preserving order. */

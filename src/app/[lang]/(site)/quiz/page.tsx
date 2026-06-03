@@ -21,14 +21,17 @@ export async function generateMetadata({
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  const meta = quizMeta[resolveLocale(lang)];
+  const locale = resolveLocale(lang);
+  const meta = quizMeta[locale];
   return {
     title: meta.title,
     description: meta.description,
     alternates: {
+      canonical: `/${locale}/quiz`,
       languages: {
         es: "/es/quiz",
         en: "/en/quiz",
+        "x-default": "/es/quiz",
       },
     },
   };

@@ -16,8 +16,20 @@ export async function generateMetadata({
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  const meta = privacyMeta[resolveLocale(lang)];
-  return { title: meta.title, description: meta.description };
+  const locale = resolveLocale(lang);
+  const meta = privacyMeta[locale];
+  return {
+    title: meta.title,
+    description: meta.description,
+    alternates: {
+      canonical: `/${locale}/privacy`,
+      languages: {
+        es: "/es/privacy",
+        en: "/en/privacy",
+        "x-default": "/es/privacy",
+      },
+    },
+  };
 }
 
 /** Render a run of inline content (text, bold, links) preserving order. */

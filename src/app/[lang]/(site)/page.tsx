@@ -73,10 +73,20 @@ export async function generateMetadata({
   const locale = resolveLocale(lang);
   const c = getLandingContent(locale);
   return {
-    title: c.meta.title,
+    title: { absolute: c.meta.title },
     description: c.meta.description,
     alternates: {
-      languages: { es: "/es", en: "/en" },
+      canonical: `/${locale}`,
+      languages: { es: "/es", en: "/en", "x-default": "/es" },
+    },
+    openGraph: {
+      title: c.meta.title,
+      description: c.meta.description,
+      url: `/${locale}`,
+    },
+    twitter: {
+      title: c.meta.title,
+      description: c.meta.description,
     },
   };
 }

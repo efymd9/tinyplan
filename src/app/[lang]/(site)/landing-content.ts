@@ -188,7 +188,7 @@ const en: LandingContent = {
     headingAccent: "during the hard moments.",
     subhead:
       "TinyPlan builds a 7-day parent toolkit around your child's age, your routine, and what feels hardest right now. Every day you get one play moment, one parent skill, ready-to-use scripts, and SOS support.",
-    cta: "Build my free plan",
+    cta: "Take the free quiz",
     ctaNote1: "Takes 3 minutes.",
     ctaNote2: "No signup to start.",
     illustrationAlt:
@@ -327,7 +327,7 @@ const en: LandingContent = {
     ],
     ctaCardText:
       "Five pieces. One simple plan. Built fresh for each of your 7 days.",
-    ctaCardButton: "Build my free plan",
+    ctaCardButton: "Take the free quiz",
   },
   howItWorks: {
     eyebrow: "How it works",
@@ -577,7 +577,7 @@ const en: LandingContent = {
       "Adaptive insights",
       "Weekly check-ins",
     ],
-    cta: "Build my free plan",
+    cta: "Take the free quiz",
     seeFull: "See full plan & pricing",
   },
   faq: {
@@ -618,7 +618,7 @@ const en: LandingContent = {
     headingLead: "Less guessing.",
     headingAccent: "More confident parenting.",
     body: "Start with a free quiz and unlock a personalized 7-day toolkit built around your real life.",
-    cta: "Build my free plan",
+    cta: "Take the free quiz",
     note: "Takes 3 minutes. No signup to start.",
   },
   footer: {
@@ -650,7 +650,7 @@ const es: LandingContent = {
     headingAccent: "en los momentos difíciles.",
     subhead:
       "TinyPlan crea un kit de herramientas de 7 días alrededor de la edad de tu peque, tu rutina y lo que hoy se te hace más difícil. Cada día recibes un momento de juego, una habilidad para mamás y papás, qué decir listo para usar y apoyo SOS.",
-    cta: "Crear mi plan gratis",
+    cta: "Hacer el test gratis",
     ctaNote1: "Toma 3 minutos.",
     ctaNote2: "Sin registro para empezar.",
     illustrationAlt:
@@ -789,7 +789,7 @@ const es: LandingContent = {
     ],
     ctaCardText:
       "Cinco piezas. Un plan sencillo. Creado de cero para cada uno de tus 7 días.",
-    ctaCardButton: "Crear mi plan gratis",
+    ctaCardButton: "Hacer el test gratis",
   },
   howItWorks: {
     eyebrow: "Cómo funciona",
@@ -1041,7 +1041,7 @@ const es: LandingContent = {
       "Ajustes inteligentes",
       "Check-ins semanales",
     ],
-    cta: "Crear mi plan gratis",
+    cta: "Hacer el test gratis",
     seeFull: "Ver el plan completo y los precios",
   },
   faq: {
@@ -1082,7 +1082,7 @@ const es: LandingContent = {
     headingLead: "Menos adivinar.",
     headingAccent: "Más confianza al criar.",
     body: "Empieza con un test gratis y desbloquea un kit de 7 días personalizado, creado alrededor de tu vida real.",
-    cta: "Crear mi plan gratis",
+    cta: "Hacer el test gratis",
     note: "Toma 3 minutos. Sin registro para empezar.",
   },
   footer: {

@@ -17,10 +17,53 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// Canonical production origin. NEXT_PUBLIC_APP_URL is the https:// site URL
+// (the build guard in next.config.ts enforces this in prod); fall back to the
+// known production domain so relative metadata still resolves in dev.
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://")
+  ? process.env.NEXT_PUBLIC_APP_URL
+  : "https://tinyplan.org";
+
+// Default (Spanish) brand copy — overridden per-locale in app/[lang]/layout.tsx.
+const SITE_NAME = "TinyPlan";
+const DEFAULT_TITLE =
+  "TinyPlan — Un kit de juego y rutina de 7 días personalizado";
+const DEFAULT_DESCRIPTION =
+  "Planes de juego y rutina personalizados para mamás y papás de niños de 2 a 6 años. Haz el test de 3 minutos y recibe un kit de 7 días con juego, habilidades y guiones listos para usar.";
+
 export const metadata: Metadata = {
-  title: "TinyPlan",
-  description:
-    "Planes de juego y rutina personalizados para madres y padres de niños de 2 a 6 años.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: DEFAULT_TITLE,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    url: "/",
+    locale: "es_ES",
+    alternateLocale: ["en_US"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default async function RootLayout({

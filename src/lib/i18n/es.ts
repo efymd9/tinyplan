@@ -93,7 +93,6 @@ export const es: Dictionary = {
       manageSubscription: "Gestionar suscripción",
       openingPortal: "Abriendo...",
       noBillingAccount: "Aún no tienes una cuenta de facturación",
-      settingUpPlan: "Preparando tu plan...",
     },
   },
   errors: {

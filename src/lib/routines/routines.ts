@@ -99,7 +99,7 @@ const independentPlayStarter: Routine = {
   script:
     "I'll set up something fun and we'll start together. Then you take over — I'll be right here if you need me.",
   relatedGoal: 'independent_play',
-  relatedPain: 'play_ideas',
+  relatedPain: 'no_ideas',
 };
 
 // ── Exports ────────────────────────────────────────────────────────────────

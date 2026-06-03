@@ -1,0 +1,9 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TinyPlan">
+  <!-- Brand coral rounded tile (palette: --primary #EF815B) -->
+  <rect width="64" height="64" rx="15" fill="#EF815B"/>
+  <!-- Friendly 'tp' monogram: a tidy white 't' for Tiny/TinyPlan -->
+  <path d="M30 14a3 3 0 0 1 6 0v6h6a3 3 0 0 1 0 6h-6v15a4 4 0 0 0 4 4h2a3 3 0 0 1 0 6h-2a10 10 0 0 1-10-10V26h-4a3 3 0 0 1 0-6h4v-6Z" fill="#FFFFFF"/>
+  <!-- Accent spark dot (palette: --accent #D8B542) — the 'tiny' delight -->
+  <circle cx="46.5" cy="44.5" r="4.5" fill="#FFF7DF"/>
+  <circle cx="46.5" cy="44.5" r="2.2" fill="#D8B542"/>
+</svg>

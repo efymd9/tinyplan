@@ -130,13 +130,15 @@ export default async function PlanRevealPage({
   if (!user) redirect(clerkEnabled ? "/sign-in" : localizeHref("/auth/login", locale));
 
   const plan = getActivePlan(user.id);
-  if (!plan) {
+  const parsedPlan = plan ? parseWeeklyPlan(plan.plan_json, plan.id) : null;
+  if (!plan || !parsedPlan) {
     // A just-checked-out user can land here before the dashboard-mounted
     // <PlanReclaimer> has adopted their anonymous plan. Don't hard-bounce to the
     // quiz: if a pending plan id exists in the browser, show a brief spinner and
     // wait for the reclaimer's refresh to bring the adopted plan into view.
     // Only when there is genuinely nothing pending does the gate send them to
-    // the quiz. (The redirect happens client-side inside the gate.)
+    // the quiz. (The redirect happens client-side inside the gate.) A corrupt
+    // stored plan (parsedPlan === null) degrades down this same path.
     return (
       <PendingPlanGate
         settingUpLabel={copy.settingUp}
@@ -145,7 +147,7 @@ export default async function PlanRevealPage({
     );
   }
 
-  const weeklyPlan = localizePlan(parseWeeklyPlan(plan.plan_json), locale);
+  const weeklyPlan = localizePlan(parsedPlan, locale);
   const activityCount = weeklyPlan.days.length;
   const routine = weeklyPlan.routine ?? localizeRoutine(deriveRoutine({
     main_pain: weeklyPlan.hardMoment ?? "",

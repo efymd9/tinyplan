@@ -6,8 +6,8 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
 const COPY = {
-  es: { buildPlan: "Crear mi plan gratis" },
-  en: { buildPlan: "Build my free plan" },
+  es: { buildPlan: "Hacer el test gratis" },
+  en: { buildPlan: "Take the free quiz" },
 } as const;
 
 export function StickyMobileCTA() {
