@@ -95,7 +95,17 @@ const clerkProxy = clerkMiddleware(async (auth, request) => {
       // returning to the reveal afterwards so the plan reclaim can run.
       const { userId, redirectToSignUp } = await auth();
       if (!userId) {
-        return redirectToSignUp({ returnBackUrl: request.url });
+        // Behind the reverse proxy `request.url` carries the internal listen
+        // address (0.0.0.0:3002), so build the return URL on the canonical
+        // public origin instead (build-guarded NEXT_PUBLIC_APP_URL).
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const returnBackUrl = appUrl
+          ? new URL(
+              request.nextUrl.pathname + request.nextUrl.search,
+              appUrl,
+            ).toString()
+          : request.url;
+        return redirectToSignUp({ returnBackUrl });
       }
     } else {
       await auth.protect();
