@@ -90,6 +90,14 @@ curl -sI http://127.0.0.1:3002/  # health on the loopback (expect 307)
 ```
 The unit lives at `/etc/systemd/system/tinyplan.service` (mirrored in [`deploy/tinyplan.service`](deploy/tinyplan.service)). After editing it: `systemctl daemon-reload && systemctl restart tinyplan`.
 
+### Pushing to GitHub
+The repo origin is `git@github.com:efymd9/tinyplan.git`. **The default SSH identity for `github.com` in `~/.ssh/config` is a READ-ONLY key belonging to another project on this shared box — do not change the config.** Push by pointing git at TinyPlan's dedicated write key explicitly:
+```bash
+cd /root/parentpath
+GIT_SSH_COMMAND="ssh -i /root/.ssh/tinyplan_org_rw -o IdentitiesOnly=yes" git push
+```
+`/root/.ssh/tinyplan_org_rw` is a write-access **deploy key** (added 2026-06-03) for this repo only. `-o IdentitiesOnly=yes` forces that key instead of the config default. Production work lives on branch `deploy/tinyplan-org`.
+
 ### Editing the shared Caddy config — carefully
 `/etc/caddy/Caddyfile` serves **multiple sites**. Never overwrite it. To change TinyPlan's vhost:
 ```bash
@@ -182,11 +190,15 @@ Completing both steps satisfies the 30-day deletion commitment in the privacy po
 
 ## Going live with real billing (currently deferred)
 
-Billing is in **soft-launch** mode (`DEV_BYPASS_PAYWALL=true` → mock checkout, no real charges, paywall effectively open). To charge for real:
-1. **Build the missing webhook.** Add `POST /api/webhooks/stripe` that reads the raw body, calls `verifyWebhookSignature()` (already in `src/lib/payments/stripe.ts`), and on `checkout.session.completed` / `customer.subscription.*` updates `users.subscription_status` (and writes a `payments` row). Until this exists, no payment ever marks a user paid.
-2. Set `STRIPE_SECRET_KEY=sk_live_…` and `STRIPE_WEBHOOK_SECRET=whsec_…` in `.env.production`; **remove** `DEV_BYPASS_PAYWALL`.
-3. Register `https://tinyplan.org/api/webhooks/stripe` in the Stripe dashboard.
-4. `npm run build && systemctl restart tinyplan`.
+Billing is **fully built but enforcement is OFF**. Soft-launch mode (`DEV_BYPASS_PAYWALL=true`, no `STRIPE_SECRET_KEY`) means mock checkout, no real charges, and an open paywall: `isBillingEnforced()` returns `false`, so the `requireActiveSubscription()` gate in the dashboard layout is a no-op. The webhook is already implemented at `POST /api/webhooks/stripe` — it verifies the signature with `STRIPE_WEBHOOK_SECRET`, writes idempotent `payments` rows (keyed on the Stripe invoice id), and maps Stripe statuses onto our enum (`trialing → trial`; `active`/`past_due → active`; `canceled`/`unpaid`/`incomplete_expired → cancelled`), resolving the user by `metadata.userId` then lowercased email.
+
+The `$1-for-7-days → $14.99/month` model was **validated in Stripe test mode** with a test clock: $1.00 charged at checkout (the `subscription_create` invoice), $14.99 at trial end (`subscription_cycle`), then the subscription goes `active`.
+
+To charge for real:
+1. Set `STRIPE_SECRET_KEY=sk_live_…` **and** `STRIPE_WEBHOOK_SECRET=whsec_…` in `.env.production`; **remove** `DEV_BYPASS_PAYWALL`. The startup preflight (`src/instrumentation.ts`) **throws** if the Stripe key is set without the webhook secret, and **throws** on the contradiction `STRIPE_SECRET_KEY` + `DEV_BYPASS_PAYWALL=true`.
+2. Register the endpoint `https://tinyplan.org/api/webhooks/stripe` in the Stripe dashboard and copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+3. `npm run build && systemctl restart tinyplan`.
+4. **Re-verify the charge timeline on the LIVE account** (a real low-value or test-clock run) before the first real customer — confirm the $1 checkout charge, the $14.99 renewal at trial end, and that `subscription_status` advances to `active`.
 
 ---
 

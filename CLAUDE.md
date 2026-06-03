@@ -36,7 +36,7 @@ npm run lint         # ESLint
 - `clerkEnabled` (`= NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is set) is the master switch for all auth branching. When false (local dev / key-less build), `getCurrentUser()` returns `null` unless `DEV_BYPASS_AUTH=true` (honored **only** outside production) returns a fixed dev user.
 - Complex objects (quiz answers, tag profiles, plans) are stored as JSON text columns and parsed at read time.
 - Provider pattern with fallbacks: Stripe (mock), Resend (console), AI adapter (stub). Analytics is first-party SQLite only.
-- Quiz state is persisted to localStorage on the client for recovery across page reloads.
+- Quiz state is persisted to localStorage on the client for recovery across page reloads. The funnel hands off via sessionStorage `tinyplan_quiz_result` (answers, read by result/checkout/success) and localStorage `tinyplan_pending_plan_id` (the anonymously generated plan id, adopted after sign-in by the reclaimer).
 - Plan generation uses a deterministic seeded shuffle (Fisher-Yates) so the same inputs produce the same plan.
 - **i18n (default Spanish):** All user-facing pages live under `app/[lang]/`. Get the locale from `params.lang` (server) or `useLocale()`/`useT()` (client) — never hardcode user-facing strings. Short chrome comes from the typed dictionary (`getDictionary(locale)`, `src/lib/i18n/en.ts` + `es.ts`); larger content from locale-keyed getters (`getQuestions`, `getSosScripts`, `getGrowthPath`, `getFallbackActivities`, `localizeRoutine`, `localizeParentTool`). Keep IDs/tags/enum codes identical across locales so logic stays language-independent. The DB stays English — stored plans are re-localized at render by `localizePlan(plan, locale)`. `/admin` and `/api/*` are NOT localized. Internal links/redirects must go through `localizeHref(path, locale)`.
 
@@ -60,11 +60,11 @@ npm run lint         # ESLint
 - `/[lang]/quiz` — 20-screen quiz shell (client component, localStorage persistence)
 - `/[lang]/result` — quiz result preview + paywall teaser
 - `/[lang]/pricing` — pricing + plan preview
-- `/[lang]/checkout/success` — post-checkout: generates the plan, routes to `/dashboard/reveal`
+- `/[lang]/checkout/success` — post-checkout: generates the plan **anonymously** (`/api/plan/generate`), stashes its id in `tinyplan_pending_plan_id`, fires `purchase_completed` only after a successful generation, then routes to `/dashboard/reveal`
 - `/[lang]/privacy`, `/[lang]/terms` — legal pages
 - `/[lang]/auth/login`, `/[lang]/auth/verify` — **legacy** magic-link (dev fallback only)
 - `/sign-in`, `/sign-up` — **Clerk** hosted auth (non-localized catch-all routes)
-- `/[lang]/dashboard/{today,week,sos,library,progress,reveal}` — auth-gated
+- `/[lang]/dashboard/{today,week,sos,library,progress,reveal}` — auth-gated (signed-out access to `/dashboard/reveal` goes to Clerk **sign-up** so the funnel visitor creates an account; every other dashboard route → sign-in)
 - `/admin`, `/admin/users`, `/admin/incomplete-quizzes` — admin analytics (`ADMIN_EMAILS`, fail-closed)
 
 ### API (under `/api`, not localized)
@@ -83,11 +83,11 @@ npm run lint         # ESLint
 
 ## Important Files
 
-- `src/proxy.ts` — Next 16 proxy (formerly middleware): layers `clerkMiddleware` (`auth.protect()` on `/dashboard`, `/admin`) over the locale redirect; both only when `clerkEnabled`
+- `src/proxy.ts` — Next 16 proxy (formerly middleware): layers `clerkMiddleware` (`auth.protect()` on `/dashboard`, `/admin`) over the locale redirect; both only when `clerkEnabled`. Special case: signed-out `/dashboard/reveal` is sent to Clerk **sign-up** (`redirectToSignUp`, `returnBackUrl` built on `NEXT_PUBLIC_APP_URL` since `request.url` carries the internal listen address behind Caddy)
 - `src/lib/db/schema.ts` — 9 Drizzle table definitions · `src/lib/db/index.ts` — SQLite singleton + runtime `createTables`/`migrateSchema`
 - `src/lib/auth/magic-link.ts` — `getCurrentUser()` (Clerk → local `users` row), the `clerkEnabled` flag, and legacy jose helpers
 - `src/lib/auth/admin.ts` — `requireAdmin()` / `isAdminEmail()` (fail-closed `ADMIN_EMAILS` gate)
-- `src/instrumentation.ts` — production startup preflight (throws if `CLERK_SECRET_KEY` is missing while Clerk is on; warns on empty `ADMIN_EMAILS`); `next.config.ts` — build-time guard (requires https `NEXT_PUBLIC_APP_URL` + `pk_` Clerk key)
+- `src/instrumentation.ts` — production startup preflight: throws if `CLERK_SECRET_KEY` is missing while Clerk is on; warns on empty `ADMIN_EMAILS`; **billing preflight** — `STRIPE_SECRET_KEY` requires `STRIPE_WEBHOOK_SECRET` (throw) and forbids `DEV_BYPASS_PAYWALL=true` (throw, contradictory); bypass-without-key warns loudly. `next.config.ts` — build-time guard (requires https `NEXT_PUBLIC_APP_URL` + `pk_` Clerk key)
 - `src/lib/quiz/questions.ts` (+ `.en.ts`/`.es.ts`) — 20-screen quiz definition · `src/lib/quiz/tags.ts` — TagProfile builder + play profile derivation
 - `src/lib/engine/plan-generator.ts` — deterministic 7-day plan · `src/lib/engine/localize-plan.ts` — render-time re-localization of stored (English) plans
 - `src/lib/payments/stripe.ts` — checkout session (mock/real), `createBillingPortalSession`, `verifyWebhookSignature` (consumed by `/api/webhooks/stripe`)
@@ -96,6 +96,8 @@ npm run lint         # ESLint
 - `src/data/sos-scripts.ts` — 8 SOS emergency parenting scripts
 - `src/components/quiz/quiz-shell.tsx` — quiz UI with state management
 - `drizzle.config.ts` — Drizzle Kit config (optional tooling; SQLite at `./data/tinyplan.db`)
+- SEO: `src/app/robots.ts`, `src/app/sitemap.ts` (both locales, hreflang, x-default→es), `src/app/icon.svg` + `apple-icon.tsx` (no `favicon.ico`), `src/app/[lang]/opengraph-image.tsx` (`next/og`); `metadataBase` + OG/Twitter in root + `[lang]` layouts (Next metadata merging is **shallow** — repeat shared blocks)
+- Error boundaries: `src/app/global-error.tsx`, `src/app/[lang]/error.tsx`, `not-found.tsx` (root + `[lang]`), `src/app/[lang]/dashboard/loading.tsx` skeleton
 
 ### i18n
 - `src/proxy.ts` — Locale detection + redirect + `tinyplan_locale` cookie (Next.js 16 proxy; lives in `src/` beside `app/`)

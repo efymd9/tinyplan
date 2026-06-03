@@ -22,6 +22,7 @@ Personalised play and routine planning app for parents of children aged 2-6. Par
 - **First-party analytics** stored in SQLite (no third-party tracking)
 - **SOS scripts** for 8 common parenting moments with exact words to say
 - **Bilingual (Spanish default + English)** — localized URLs, a language switch, and render-time re-localization so even stored plans switch language
+- **Production polish** — per-locale `robots`/`sitemap` (hreflang, x-default→es), OG/Twitter metadata + generated OpenGraph images, SVG favicon (`icon.svg`/`apple-icon`), and error boundaries / `not-found` pages at the root and `[lang]` levels
 
 ## Routes
 
@@ -32,14 +33,14 @@ All user-facing pages are served under a **locale segment**: `/es/…` (default)
 | `/quiz` | No | 20-screen quiz |
 | `/result` | No | Quiz result preview (paywall teaser) |
 | `/pricing` | No | Pricing page with plan preview |
-| `/checkout/success` | No | Post-checkout: generates the plan, redirects to `/dashboard/reveal` |
+| `/checkout/success` | No | Post-checkout: generates the plan **anonymously**, stashes its id in `localStorage`, redirects to `/dashboard/reveal` |
 | `/privacy`, `/terms` | No | Legal pages |
 | `/sign-in`, `/sign-up` | No | **Clerk** hosted auth (custom catch-all, NOT localized) |
 | `/auth/login`, `/auth/verify` | No | Magic-link entry/verify — **legacy, dev fallback only** |
 | `/dashboard` | Yes | Redirects to `/dashboard/today` |
 | `/dashboard/today` | Yes | Today's activity with parent script |
 | `/dashboard/week` | Yes | 7-day plan overview |
-| `/dashboard/reveal` | Yes | New-plan reveal screen |
+| `/dashboard/reveal` | Yes | New-plan reveal screen (signed-out visitors are sent to Clerk **sign-up**; the plan is then reclaimed) |
 | `/dashboard/sos` | Yes | Emergency parenting scripts |
 | `/dashboard/library` | Yes | Activity library |
 | `/dashboard/progress` | Yes | Week completion stats |
@@ -51,13 +52,16 @@ All user-facing pages are served under a **locale segment**: `/es/…` (default)
 
 ### API Routes
 
-`/api/*` is never localized. Most endpoints are **public**; only the two marked Auth call `getCurrentUser()` and return 401 when signed out. `/dashboard/*` page protection is enforced by `proxy.ts` (`auth.protect()`) and the dashboard layout, not by these endpoints.
+`/api/*` is never localized. Most endpoints are **public**; the ones marked Auth call `getCurrentUser()` and return 401 when signed out. `/api/webhooks/stripe` is unauthenticated but **signature-verified** (`STRIPE_WEBHOOK_SECRET`). `/dashboard/*` page protection is enforced by `proxy.ts` (`auth.protect()`) and the dashboard layout, not by these endpoints.
 
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
 | `/api/quiz/submit` | POST | No | Build TagProfile, persist a quiz session |
-| `/api/plan/generate` | POST | No | Generate + persist the 7-day plan (associates to user if signed in) |
+| `/api/plan/generate` | POST | No | Generate + persist the 7-day plan (associates to user if signed in; anonymous otherwise) |
+| `/api/plan/reclaim` | POST | **Yes** | Adopt an unowned, <24h-old plan for the signed-in user (post-sign-up funnel) |
 | `/api/checkout` | POST | No | Create a Stripe (or mock) checkout session |
+| `/api/webhooks/stripe` | POST | Sig | Stripe webhook (signature-verified): advances subscription status + records payments |
+| `/api/billing/portal` | POST | **Yes** | Open a Stripe Billing Portal session for the signed-in user |
 | `/api/dashboard/log` | POST | **Yes** | Log activity completion for an owned plan/day |
 | `/api/dashboard/activities` | GET | **Yes** | List all activities for the library |
 | `/api/chat` | POST | No | TinyPlan Coach reply (rule-based, safety-guarded) |
@@ -74,7 +78,7 @@ All user-facing pages are served under a **locale segment**: `/es/…` (default)
 - **Database:** SQLite (better-sqlite3, WAL mode) with Drizzle ORM — a single local file
 - **Auth:** Clerk (`@clerk/nextjs`); magic-link JWT (jose) retained only as a key-less dev fallback
 - **Payments:** Stripe (subscription mode with $1 intro period); mock fallback when unconfigured
-- **Email:** Resend (production), console fallback (dev)
+- **Email:** Resend provider exists but is **not used at runtime in production** — Clerk sends all auth email. It is only wired into the legacy magic-link route (`/api/auth/request`), which returns 410 when Clerk is on; without `RESEND_API_KEY` it logs to console.
 - **Analytics:** First-party events written to SQLite (no PostHog / third-party SDK)
 
 ## Setup
@@ -121,10 +125,11 @@ With no env configured, the app runs fully: Clerk is off (use `DEV_BYPASS_AUTH=t
 
 ## Stripe Integration
 
+- **Soft-launch funnel:** quiz → `/result` → `/api/checkout` (a **mock** pass-through during the soft launch: `DEV_BYPASS_PAYWALL=true`, no `STRIPE_SECRET_KEY`) → `/checkout/success` generates the plan **anonymously** via `/api/plan/generate`, stashes its id in `localStorage` (`tinyplan_pending_plan_id`), and fires `purchase_completed` only **after** a confirmed generation → routes to `/dashboard/reveal`. A signed-out visitor to the reveal route is sent to Clerk **sign-up** (`redirectToSignUp`); after account creation, `<PlanReclaimer>` (mounted in the dashboard layout) POSTs `/api/plan/reclaim` to adopt the unowned (<24h) plan. Reveal shows a pending-plan spinner instead of bouncing to the quiz. (Every other protected route keeps `auth.protect()` → sign-in.)
 - **Subscription mode:** `$1` for 7 days (trial), then `$14.99/month` recurring. Prices are inline `price_data` — no Stripe Price IDs to configure.
 - **Mock fallback:** with no `STRIPE_SECRET_KEY`, `/api/checkout` returns a mock session that redirects straight to the success page. **In production**, an absent key throws *unless* `DEV_BYPASS_PAYWALL=true` (the soft-launch mode).
-- **Metadata:** `userId` and `quizSessionId` are attached to the checkout session.
-- **Webhook:** `POST /api/webhooks/stripe` verifies signatures (`STRIPE_WEBHOOK_SECRET`) and handles `checkout.session.completed`, `customer.subscription.*`, and `invoice.paid`/`payment_failed` — advancing `users.subscription_status` (`trial`/`active`/`cancelled`) and recording `payments` rows idempotently.
+- **Metadata:** `userId` and `quizSessionId` are attached to the checkout session. `/api/checkout` still accepts an optional `email` in its body, but the funnel no longer sends one — once billing is live, Stripe Checkout collects the payer's email natively.
+- **Webhook:** `POST /api/webhooks/stripe` verifies signatures (`STRIPE_WEBHOOK_SECRET`) and handles `checkout.session.completed`, `customer.subscription.created`/`updated`/`deleted`, and `invoice.paid`/`invoice.payment_failed`. It maps Stripe status onto `users.subscription_status` (`trialing`→`trial`; `active`/`past_due`→`active`; `canceled`/`unpaid`/`incomplete_expired`→`cancelled`), resolves the user by `metadata.userId` then lowercased email, and records `payments` rows idempotently (keyed on the invoice id).
 - **Subscription gate:** `requireActiveSubscription()` (`src/lib/auth/subscription.ts`) protects the dashboard, but is a **no-op while billing is not enforced** — `isBillingEnforced()` is true only when `STRIPE_SECRET_KEY` is set *and* `DEV_BYPASS_PAYWALL` is not `true`. The soft launch therefore runs with an intentionally open paywall.
 - **Validated charge timeline** (Stripe test mode, test clock): **$1.00 charged at checkout** (`subscription_create` invoice), 7-day `trialing`, then **$14.99 at trial end** (`subscription_cycle`) — matching the advertised "$1 for 7 days, then $14.99/month". Re-confirm once against the live account before the first real charge.
 - **To enable real billing:** set `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, register the webhook endpoint in Stripe, and remove `DEV_BYPASS_PAYWALL` (the startup preflight rejects contradictory combinations). A "Manage subscription" button in the dashboard opens the Stripe Billing Portal via `/api/billing/portal`.
@@ -155,7 +160,7 @@ TinyPlan ships bilingual with **Spanish as the default**, built on an in-repo di
 - **Locales:** `es` (default) and `en`, defined in `src/lib/i18n/config.ts` (`defaultLocale = 'es'`).
 - **Localized routing:** every user-facing page lives under `app/[lang]/`. `src/proxy.ts` (the Next.js 16 successor to `middleware.ts`) redirects unprefixed paths to `/{locale}` — resolving from the `tinyplan_locale` cookie → `Accept-Language` → `es` — and keeps the cookie in sync. `app/admin`, `app/sign-in`, `app/sign-up`, and `app/api` sit outside `[lang]` and are never localized.
 - **Reading the locale:** server components use `params.lang` + `getDictionary(lang)`; client components use `useLocale()` / `useT()` from `@/components/i18n/locale-provider`. The root layout sets `<html lang>` from the cookie.
-- **Switcher:** `LanguageSwitcher` (floating on public pages via the `(site)` route group, in the header on the dashboard) sets the cookie and swaps the URL's locale segment. The chosen locale is **not** persisted to the database.
+- **Switcher:** `LanguageSwitcher` is rendered **inline in the header** of each public page (landing, quiz, pricing, privacy, terms, result) and the dashboard — the former floating top-right overlay in `(site)/layout.tsx` was removed (it covered header buttons on mobile). It sets the cookie and swaps the URL's locale segment. The chosen locale is **not** persisted to the database.
 - **Content split:** short UI chrome lives in the typed dictionaries (`en.ts` / `es.ts`); larger bodies (quiz, SOS, growth path, activities, routines, legal pages, emails, parent toolkit) live in locale-keyed modules selected by getters such as `getQuestions(locale)`, `getSosScripts(locale)`, `getFallbackActivities(locale)`. IDs, tags, and enum codes are identical across locales, so application logic is language-independent.
 - **The database stays English.** Generated plans are stored in English and **re-localized at render time** by `localizePlan(plan, locale)`, which re-derives all display text from the stored stable keys/IDs. Toggling EN/ES re-localizes even existing plans without regenerating them.
 - **Adding a string:** add the key to `en.ts` **and** `es.ts` (the `Dictionary = Widen<typeof en>` type makes a missing key a compile error), or extend the relevant locale-keyed content module.
@@ -211,7 +216,7 @@ src/
 TinyPlan targets families in the **US, UK, Canada, and Australia**.
 
 ### Data Collection
-- **Minimal PII:** Only email address is collected. No child names, photos, or location data.
+- **Minimal PII:** The only personal identifier is the **parent's account email**, captured by Clerk at sign-up. The quiz collects **no email and no child name** — no child PII anywhere. No photos or location data.
 - **No child accounts:** Children never interact with the app directly. All data describes the parent's observations.
 - **Age stored as range:** Child age is stored as a bracket (2-6), not a birthdate.
 - **Quiz answers are observational:** play-style preferences and routine patterns, not medical or diagnostic information.
@@ -223,7 +228,7 @@ TinyPlan targets families in the **US, UK, Canada, and Australia**.
 | US | COPPA | App is directed at parents, not children. No data from under-13s. No child accounts. |
 | US | CCPA/CPRA, etc. | Email + subscription data only. Honor deletion requests. |
 | UK | UK GDPR + Age Appropriate Design Code | No child PII. Parent email under a contract basis (subscription). |
-| Canada | PIPEDA | Consent at email capture. Minimal data collection. |
+| Canada | PIPEDA | Consent at account sign-up (Clerk). Minimal data collection. |
 | Australia | Privacy Act 1988 + APPs | No sensitive information collected. Consent at signup. |
 
 ### Content Guardrails
