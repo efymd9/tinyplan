@@ -52,7 +52,7 @@ npm run lint         # ESLint
 
 ## Important Routes
 
-> Page routes are served under a locale segment — `/es/…` (default) and `/en/…`. `src/proxy.ts` redirects any unprefixed path to the visitor's locale (cookie → `Accept-Language` by q-value → `en` when the visitor lists languages but matches neither → `es` only with no language signal at all). `/sign-in`, `/sign-up`, `/admin`, and `/api/*` are NOT localized.
+> Page routes are served under a locale segment — `/es/…` (default) and `/en/…`. `src/proxy.ts` redirects any unprefixed path to the visitor's locale (cookie → `Accept-Language` by q-value → for visitors matching neither locale: `es` if their IP is in a Spanish-speaking country (local GeoIP, see DEPLOY.md), else `en` → `es` only with no language signal at all). `/sign-in`, `/sign-up`, `/admin`, and `/api/*` are NOT localized.
 
 ### Pages
 - `/` — redirects to `/{locale}` (default `/es`)

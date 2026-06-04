@@ -98,6 +98,16 @@ GIT_SSH_COMMAND="ssh -i /root/.ssh/tinyplan_org_rw -o IdentitiesOnly=yes" git pu
 ```
 `/root/.ssh/tinyplan_org_rw` is a write-access **deploy key** (added 2026-06-03) for this repo only. `-o IdentitiesOnly=yes` forces that key instead of the config default. Production work lives on branch `deploy/tinyplan-org`.
 
+### GeoIP database (locale tiebreak)
+When a visitor's `Accept-Language` matches neither locale, `src/proxy.ts` tiebreaks on the client IP's country via a **local** MaxMind-format lookup — the IP is not stored and never leaves the server (no third-party geo API, consistent with the privacy policy). The database is gitignored; fetch it on a fresh box (and optionally refresh monthly — DB-IP publishes on the 1st):
+```bash
+mkdir -p /root/parentpath/data/geoip
+curl -sL "https://download.db-ip.com/free/dbip-country-lite-$(date +%Y-%m).mmdb.gz" \
+  | gunzip > /root/parentpath/data/geoip/dbip-country-lite.mmdb
+systemctl restart tinyplan   # the reader is cached per-process
+```
+If the file is absent the geo step silently disables itself (language-only detection). Attribution (CC BY 4.0): this product includes IP-geolocation data by [DB-IP](https://db-ip.com).
+
 ### Editing the shared Caddy config — carefully
 `/etc/caddy/Caddyfile` serves **multiple sites**. Never overwrite it. To change TinyPlan's vhost:
 ```bash

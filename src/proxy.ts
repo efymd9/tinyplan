@@ -12,10 +12,55 @@
 // the DEV_BYPASS_AUTH flow.
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
+import { Reader, type CountryResponse } from "mmdb-lib";
 import { locales, defaultLocale, isLocale } from "@/lib/i18n/config";
 
 const COOKIE = "tinyplan_locale";
 const ONE_YEAR = 60 * 60 * 24 * 365;
+
+// ── GeoIP (local lookup — visitor IPs never leave this server) ──────────────
+// Used only as a tiebreaker when Accept-Language matches neither locale.
+// Database: DB-IP Country Lite (https://db-ip.com, CC BY 4.0) at
+// data/geoip/dbip-country-lite.mmdb — see DEPLOY.md. Missing file = geo step
+// silently disabled. The proxy runs on the Node.js runtime, so fs is fine.
+
+// Countries where Spanish is the dominant/official language.
+const SPANISH_SPEAKING = new Set([
+  "ES", "MX", "AR", "CO", "PE", "VE", "CL", "EC", "GT", "CU", "BO", "DO",
+  "HN", "PY", "SV", "NI", "CR", "PA", "UY", "PR", "GQ",
+]);
+
+let geoReader: Reader<CountryResponse> | null | undefined;
+
+function getGeoReader(): Reader<CountryResponse> | null {
+  if (geoReader !== undefined) return geoReader;
+  try {
+    const dbPath = path.join(
+      process.cwd(), "data", "geoip", "dbip-country-lite.mmdb",
+    );
+    geoReader = new Reader<CountryResponse>(fs.readFileSync(dbPath));
+  } catch {
+    geoReader = null; // no database on this box → geo tiebreak disabled
+  }
+  return geoReader;
+}
+
+function clientCountry(request: NextRequest): string | null {
+  const reader = getGeoReader();
+  if (!reader) return null;
+  // Behind Caddy the real client IP arrives in X-Forwarded-For.
+  const xff = request.headers.get("x-forwarded-for");
+  let ip = xff?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "";
+  if (ip.startsWith("::ffff:")) ip = ip.slice(7); // IPv4-mapped IPv6
+  if (!ip) return null;
+  try {
+    return reader.get(ip)?.country?.iso_code ?? null;
+  } catch {
+    return null; // malformed IP
+  }
+}
 
 const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -71,10 +116,16 @@ function pickLocale(request: NextRequest): string {
   for (const p of prefs) if (isLocale(p.base)) return p.base;
 
   // The visitor listed languages but none we support (e.g. ru-RU only, de-DE
-  // only): English is the likelier match than the Spanish product default.
+  // only). Tiebreak on location: an IP in a Spanish-speaking country → es
+  // (local GeoIP lookup; the IP is not stored and never leaves the server);
+  // otherwise English is the likelier match than the Spanish product default.
   // Spanish remains the default only when there is no language signal at all
   // (no header / wildcard-only: bots, curl) — matching the SEO x-default.
-  if (prefs.length > 0) return "en";
+  if (prefs.length > 0) {
+    const country = clientCountry(request);
+    if (country && SPANISH_SPEAKING.has(country)) return "es";
+    return "en";
+  }
   return defaultLocale;
 }
 
