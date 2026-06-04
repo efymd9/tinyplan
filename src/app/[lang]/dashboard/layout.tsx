@@ -84,7 +84,10 @@ export default async function DashboardLayout({
 
       <div className="flex-1 flex max-w-6xl mx-auto w-full">
         <DesktopNav progress={progress} userEmail={user.email} />
-        <main className="flex-1 p-4 md:p-8 pb-safe-bottom md:pb-8">{children}</main>
+        {/* min-w-0: as a flex item, <main> would otherwise refuse to shrink below
+            its content's intrinsic width — the library's nowrap tab row (~440px)
+            made the whole page overflow horizontally on phones. */}
+        <main className="flex-1 min-w-0 p-4 md:p-8 pb-safe-bottom md:pb-8">{children}</main>
       </div>
 
       <MobileNav />
