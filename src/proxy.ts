@@ -49,11 +49,32 @@ const isFunnelSignUpRoute = createRouteMatcher([
 function pickLocale(request: NextRequest): string {
   const cookie = request.cookies.get(COOKIE)?.value;
   if (cookie && isLocale(cookie)) return cookie;
+
+  // Parse Accept-Language ("es-419,es;q=0.9,en;q=0.8") into base codes sorted
+  // by q-value (header order as tiebreak), so a stated preference order wins.
   const header = request.headers.get("accept-language") ?? "";
   const prefs = header
     .split(",")
-    .map((p) => p.split(";")[0].trim().slice(0, 2).toLowerCase());
-  for (const p of prefs) if (isLocale(p)) return p;
+    .map((part, i) => {
+      const [tag, ...params] = part.trim().split(";");
+      const qParam = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+      const q = qParam ? parseFloat(qParam.slice(2)) : 1;
+      return {
+        base: tag.trim().slice(0, 2).toLowerCase(),
+        q: Number.isFinite(q) ? q : 0,
+        i,
+      };
+    })
+    .filter((p) => p.base && p.base !== "*")
+    .sort((a, b) => b.q - a.q || a.i - b.i);
+
+  for (const p of prefs) if (isLocale(p.base)) return p.base;
+
+  // The visitor listed languages but none we support (e.g. ru-RU only, de-DE
+  // only): English is the likelier match than the Spanish product default.
+  // Spanish remains the default only when there is no language signal at all
+  // (no header / wildcard-only: bots, curl) — matching the SEO x-default.
+  if (prefs.length > 0) return "en";
   return defaultLocale;
 }
 
