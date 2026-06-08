@@ -137,13 +137,18 @@ The DB is a single SQLite file. Use a WAL-safe online backup (never a raw `cp` o
 # manual
 sqlite3 /root/parentpath/data/tinyplan.db ".backup '/root/backups/tinyplan-$(date +%F).db'"
 ```
-[`deploy/backup-db.sh`](deploy/backup-db.sh) does this with rotation. To schedule nightly:
+[`deploy/backup-db.sh`](deploy/backup-db.sh) does this with rotation (keeps 14). **Status (2026-06-08):** `/root/backups` exists, one backup taken, and a restore drill passed (gunzip → open → row counts matched live → `PRAGMA integrity_check = ok`). Still TODO: install the nightly cron (left to the operator — `crontab` edits aren't automated), an **off-box** copy, and a backup of `.env.production` (its secrets — Clerk live, Stripe, AUTH_SECRET — are regenerable but losing them is painful).
 ```bash
 chmod +x /root/parentpath/deploy/backup-db.sh
-crontab -e
-# 0 3 * * *  /root/parentpath/deploy/backup-db.sh >> /root/backups/backup.log 2>&1
+# install the nightly job (no existing root crontab to preserve):
+( crontab -l 2>/dev/null | grep -v backup-db.sh; \
+  echo '0 3 * * * /root/parentpath/deploy/backup-db.sh >> /root/backups/backup.log 2>&1' ) | crontab -
+# off-box (pick one): rclone copy /root/backups remote:tinyplan-backups   # or scp to another host
 ```
 Copy backups off-box periodically. `analytics_events` grows unbounded — prune/rotate if it gets large.
+
+### Port exposure / firewall
+The app binds `0.0.0.0:3002` but the raw port is **not** publicly reachable: `ufw` default-incoming is `deny` and there is **no `3002` allow rule** (only 22/80/443 + other projects' 3003/3004), so external traffic to `:3002` is dropped while Caddy reaches it over loopback. **Do not add a `3002` allow rule**, and **do not** change `ExecStart` to bind `-H 127.0.0.1`: under Next 16, binding to loopback makes `proxy.ts` self-proxy to `https://localhost:3002` (it derives the scheme from Caddy's `X-Forwarded-Proto: https`) and every rendered route 500s with an `EPROTO` TLS error. The firewall is the correct control here.
 
 ### Honoring data-deletion requests (GDPR / CCPA / PIPEDA / COPPA)
 
