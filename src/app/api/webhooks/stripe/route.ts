@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
-import { eq } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '@/lib/db';
 import { users, payments } from '@/lib/db/schema';
-import { verifyWebhookSignature } from '@/lib/payments/stripe';
+import {
+  verifyWebhookSignature,
+  getInvoiceIdForCharge,
+} from '@/lib/payments/stripe';
+import { pnConversion, pnReversal } from '@/lib/partner-network';
+
+// Minimum paid amount that counts as a qualifying sale for the affiliate network
+// — 900 cents = $9.00, mirroring the offer's minAmount. The $1 intro is below
+// this, so it is reported as a "trial"; the first $14.99 charge clears it and is
+// a "sale".
+const PN_QUALIFY_CENTS = 900;
 
 // Stripe needs the raw, unparsed request body to verify the signature, so this
 // handler reads `await req.text()` (Next.js 16 has no body-parser config knob).
@@ -102,15 +112,17 @@ function recordPayment(opts: {
   amountCents: number;
   currency: string;
   status: string;
-}) {
+}): boolean {
   const db = getDb();
-  // Idempotency: skip if we've already stored this invoice.
+  // Idempotency: skip if we've already stored this invoice. Returns false on a
+  // duplicate so callers can avoid re-firing side effects (e.g. reporting the
+  // same conversion to the affiliate network) on Stripe webhook retries.
   const existing = db
     .select()
     .from(payments)
     .where(eq(payments.stripe_session_id, opts.invoiceId))
     .get();
-  if (existing) return;
+  if (existing) return false;
 
   db.insert(payments)
     .values({
@@ -124,6 +136,7 @@ function recordPayment(opts: {
       created_at: now(),
     })
     .run();
+  return true;
 }
 
 function handleSubscription(sub: Stripe.Subscription) {
@@ -138,7 +151,7 @@ function handleSubscription(sub: Stripe.Subscription) {
   });
 }
 
-function handleInvoicePaid(invoice: Stripe.Invoice) {
+async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const subDetails = invoice.parent?.subscription_details ?? null;
   const subscriptionId = asId(subDetails?.subscription ?? null);
   const userId =
@@ -153,7 +166,22 @@ function handleInvoicePaid(invoice: Stripe.Invoice) {
   // the recurring renewal cases).
   updateUser(user.id, { status: 'active', customerId });
 
-  recordPayment({
+  // Determine whether this user already had a qualifying paid invoice BEFORE we
+  // record the current one — this distinguishes the first real "sale" from a
+  // later "rebill".
+  const priorQualifying = !!getDb()
+    .select()
+    .from(payments)
+    .where(
+      and(
+        eq(payments.user_id, user.id),
+        eq(payments.status, 'paid'),
+        gte(payments.amount_cents, PN_QUALIFY_CENTS)
+      )
+    )
+    .get();
+
+  const inserted = recordPayment({
     userId: user.id,
     invoiceId: invoice.id,
     subscriptionId,
@@ -161,6 +189,30 @@ function handleInvoicePaid(invoice: Stripe.Invoice) {
     currency: invoice.currency ?? 'usd',
     status: 'paid',
   });
+
+  // Report the conversion to the affiliate network — once per invoice (skip on
+  // Stripe webhook retries). Fail-safe: pnConversion never throws and no-ops
+  // unless the PN_* env vars and a captured click id are present.
+  if (inserted) {
+    const amountCents = invoice.amount_paid ?? 0;
+    // $1 intro invoice → "trial"; first $14.99 charge → "sale"; later $14.99
+    // renewals (a prior qualifying invoice already exists) → "rebill".
+    const event =
+      invoice.billing_reason === 'subscription_create'
+        ? 'trial'
+        : priorQualifying
+          ? 'rebill'
+          : 'sale';
+    await pnConversion({
+      clickId: (subDetails?.metadata?.click_id as string | undefined) || null,
+      userRef: user.id,
+      event,
+      externalPaymentId: invoice.id,
+      grossAmount: amountCents / 100,
+      currency: (invoice.currency ?? 'usd').toUpperCase(),
+      isFirstPayment: event === 'sale',
+    });
+  }
 }
 
 function handleInvoiceFailed(invoice: Stripe.Invoice) {
@@ -235,12 +287,31 @@ export async function POST(req: NextRequest) {
       }
 
       case 'invoice.paid':
-        handleInvoicePaid(event.data.object as Stripe.Invoice);
+        await handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
 
       case 'invoice.payment_failed':
         handleInvoiceFailed(event.data.object as Stripe.Invoice);
         break;
+
+      case 'charge.refunded': {
+        // Affiliate clawback: report the refund against the same invoice id we
+        // reported as the conversion's external_payment_id.
+        const charge = event.data.object as Stripe.Charge;
+        const invId = await getInvoiceIdForCharge(charge.id);
+        if (invId) await pnReversal(invId, 'refund');
+        break;
+      }
+
+      case 'charge.dispute.created': {
+        // Affiliate clawback on chargeback — resolve the disputed charge back to
+        // its invoice id, then report the reversal.
+        const dispute = event.data.object as Stripe.Dispute;
+        const chargeId = asId(dispute.charge);
+        const invId = chargeId ? await getInvoiceIdForCharge(chargeId) : null;
+        if (invId) await pnReversal(invId, 'chargeback');
+        break;
+      }
 
       default:
         // Unhandled event types are acknowledged so Stripe stops retrying.

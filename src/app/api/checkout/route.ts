@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     const userId = user?.id || uuid();
     const userEmail = (user?.email || email || "").trim().toLowerCase();
 
-    const locale = resolveLocale((await cookies()).get("tinyplan_locale")?.value);
+    const jar = await cookies();
+    const locale = resolveLocale(jar.get("tinyplan_locale")?.value);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     const result = await createCheckoutSession({
@@ -23,6 +24,8 @@ export async function POST(req: NextRequest) {
       quizSessionId: answers ? "quiz_" + Date.now() : undefined,
       successUrl: `${baseUrl}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/${locale}/result`,
+      // Affiliate attribution: forward the captured partner click id (if any).
+      clickId: jar.get("pn_click")?.value || undefined,
     });
 
     return NextResponse.json(result);

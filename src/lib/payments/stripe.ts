@@ -6,6 +6,7 @@ export interface CheckoutConfig {
   quizSessionId?: string;
   successUrl: string;
   cancelUrl: string;
+  clickId?: string;
 }
 
 export interface CheckoutResult {
@@ -102,6 +103,10 @@ export async function createCheckoutSession(
   const metadata = {
     userId: config.userId,
     ...(config.quizSessionId ? { quizSessionId: config.quizSessionId } : {}),
+    // Affiliate-network click id (when the visitor arrived via a partner link).
+    // Spread into BOTH the session metadata and subscription_data.metadata below,
+    // so the Stripe webhook can read it off the invoice's subscription details.
+    ...(config.clickId ? { click_id: config.clickId } : {}),
   };
 
   const session = await stripe.checkout.sessions.create({
@@ -197,4 +202,39 @@ export async function verifyWebhookSignature(
   const stripe = new Stripe(secretKey);
 
   return stripe.webhooks.constructEvent(body, signature, webhookSecret);
+}
+
+/**
+ * Resolve the Stripe invoice id behind a charge — used to attribute affiliate
+ * refunds / chargebacks back to the same `external_payment_id` (the invoice id)
+ * that was reported at conversion time.
+ *
+ * In the current Stripe API (Basil) the Charge and PaymentIntent objects no
+ * longer carry an `invoice` field; the link now lives on InvoicePayment. So we
+ * walk: charge → payment_intent → the InvoicePayment whose payment references
+ * that PI → its invoice id.
+ *
+ * Fail-safe: returns null on any missing key or error (never throws).
+ */
+export async function getInvoiceIdForCharge(
+  chargeId: string
+): Promise<string | null> {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey || !chargeId) return null;
+  try {
+    const stripe = new Stripe(secretKey);
+    const charge = await stripe.charges.retrieve(chargeId);
+    const pi = charge.payment_intent;
+    const piId = typeof pi === 'string' ? pi : (pi?.id ?? null);
+    if (!piId) return null;
+
+    const list = await stripe.invoicePayments.list({
+      payment: { type: 'payment_intent', payment_intent: piId },
+      limit: 1,
+    });
+    const inv = list.data[0]?.invoice;
+    return typeof inv === 'string' ? inv : (inv?.id ?? null);
+  } catch {
+    return null;
+  }
 }

@@ -55,7 +55,7 @@ const EN: TermsContent = {
   backToHome: "Back to home",
   title: "Terms of Service",
   lastUpdatedLabel: "Last updated:",
-  lastUpdated: "27 May 2025",
+  lastUpdated: "8 June 2026",
   copyright: "© 2025 TinyPlan. All rights reserved.",
   footerPrivacy: "Privacy Policy",
   footerTerms: "Terms of Service",
@@ -98,6 +98,14 @@ const EN: TermsContent = {
         ],
         [
           "Refunds are handled on a case-by-case basis. If you’re unhappy, contact us and we’ll try to make it right.",
+        ],
+      ],
+    },
+    {
+      heading: "Referrals and affiliates",
+      paragraphs: [
+        [
+          "TinyPlan runs an affiliate program. If you reach us through a partner’s referral link, we record a referral identifier and report your subscription (and any later refund or chargeback) to our affiliate network so the partner can be credited. This never changes the price you pay, and we never share your name, email, or any information about your child for this purpose. See our Privacy Policy for details.",
         ],
       ],
     },
@@ -197,7 +205,7 @@ const ES: TermsContent = {
   backToHome: "Volver al inicio",
   title: "Términos del servicio",
   lastUpdatedLabel: "Última actualización:",
-  lastUpdated: "27 de mayo de 2025",
+  lastUpdated: "8 de junio de 2026",
   copyright: "© 2025 TinyPlan. Todos los derechos reservados.",
   footerPrivacy: "Política de privacidad",
   footerTerms: "Términos del servicio",
@@ -240,6 +248,14 @@ const ES: TermsContent = {
         ],
         [
           "Los reembolsos se gestionan caso por caso. Si no estás conforme, contáctanos e intentaremos solucionarlo.",
+        ],
+      ],
+    },
+    {
+      heading: "Referidos y afiliados",
+      paragraphs: [
+        [
+          "TinyPlan tiene un programa de afiliados. Si llegas a través del enlace de referido de un socio, registramos un identificador de referido e informamos de tu suscripción (y de cualquier reembolso o contracargo posterior) a nuestra red de afiliados para que el socio reciba el crédito correspondiente. Esto nunca cambia el precio que pagas, y nunca compartimos tu nombre, tu correo electrónico ni ninguna información sobre tu peque con este fin. Consulta nuestra Política de privacidad para más detalles.",
         ],
       ],
     },

@@ -46,7 +46,7 @@ const EN: PrivacyContent = {
   backToHome: "Back to home",
   title: "Privacy Policy",
   lastUpdatedLabel: "Last updated:",
-  lastUpdated: "27 May 2025",
+  lastUpdated: "8 June 2026",
   copyright: "© 2025 TinyPlan. All rights reserved.",
   footerPrivacy: "Privacy Policy",
   footerTerms: "Terms of Service",
@@ -78,6 +78,10 @@ const EN: PrivacyContent = {
         [
           { bold: "Basic analytics events" },
           " — page views and feature usage, stored in our own database. No third-party tracking scripts are loaded by default.",
+        ],
+        [
+          { bold: "Referral attribution data" },
+          " — if you arrive through an affiliate or partner link, a referral identifier is stored in a first-party “pn_click” cookie. If you then subscribe, we report the conversion to our affiliate network so the referring partner is credited (see “Third parties” below). We share only a non-identifying internal account reference, the Stripe invoice ID, and the amount and currency — never your email, name, or any data about your child.",
         ],
       ],
     },
@@ -134,10 +138,14 @@ const EN: PrivacyContent = {
           },
           ".",
         ],
+        [
+          { bold: "Affiliate network (partner attribution)" },
+          " — if you sign up after following an affiliate or partner link, we report the conversion to our affiliate network (partnernetwork.space) so the referring partner can be credited and paid. We send a non-identifying internal account reference, the Stripe invoice ID, and the payment amount and currency — never your email, name, or any information about your child. Refunds and chargebacks are also reported so partner commissions can be reversed.",
+        ],
       ],
       afterList: [
         [
-          "We share data only with the processors listed above, solely to operate the service. We do not share your data with any other third parties.",
+          "We share data only with the parties listed above — to operate the service and to attribute partner referrals. We do not share your data with any other third parties, and we do not sell it.",
         ],
       ],
     },
@@ -145,7 +153,7 @@ const EN: PrivacyContent = {
       heading: "Cookies and sessions",
       paragraphs: [
         [
-          "Our authentication provider, Clerk, sets cookies in your browser to keep you signed in and to secure your session. We use your browser’s localStorage to save quiz progress (so you can resume if you leave the page) and to store a first-party, randomly generated analytics identifier (“tinyplan_anon_id”). This identifier lets us measure aggregate, IP-less usage of our own pages; it is not tied to your identity and is not shared with third parties. We do not use third-party advertising or tracking cookies.",
+          "Our authentication provider, Clerk, sets cookies in your browser to keep you signed in and to secure your session. We use your browser’s localStorage to save quiz progress (so you can resume if you leave the page) and to store a first-party, randomly generated analytics identifier (“tinyplan_anon_id”). This identifier lets us measure aggregate, IP-less usage of our own pages; it is not tied to your identity and is not shared with third parties. If you reach TinyPlan through an affiliate or partner link, we also set a first-party “pn_click” cookie (kept for up to 60 days) that records the referral identifier so the referring partner can be credited if you subscribe; this cookie holds no personal information. We do not use third-party advertising or tracking cookies.",
         ],
       ],
     },
@@ -215,7 +223,7 @@ const ES: PrivacyContent = {
   backToHome: "Volver al inicio",
   title: "Política de privacidad",
   lastUpdatedLabel: "Última actualización:",
-  lastUpdated: "27 de mayo de 2025",
+  lastUpdated: "8 de junio de 2026",
   copyright: "© 2025 TinyPlan. Todos los derechos reservados.",
   footerPrivacy: "Política de privacidad",
   footerTerms: "Términos del servicio",
@@ -247,6 +255,10 @@ const ES: PrivacyContent = {
         [
           { bold: "Eventos básicos de analítica" },
           " — vistas de página y uso de funciones, almacenados en nuestra propia base de datos. No se cargan scripts de seguimiento de terceros de forma predeterminada.",
+        ],
+        [
+          { bold: "Datos de atribución de referidos" },
+          " — si llegas a través de un enlace de afiliado o socio, guardamos un identificador de referido en una cookie propia (“pn_click”). Si después te suscribes, informamos de la conversión a nuestra red de afiliados para acreditar al socio que te refirió (consulta “Terceros” más abajo). Solo compartimos una referencia interna de cuenta no identificativa, el ID de factura de Stripe y el importe y la moneda; nunca tu correo electrónico, tu nombre ni ningún dato de tu peque.",
         ],
       ],
     },
@@ -303,10 +315,14 @@ const ES: PrivacyContent = {
           },
           ".",
         ],
+        [
+          { bold: "Red de afiliados (atribución de socios)" },
+          " — si te suscribes después de seguir un enlace de afiliado o socio, informamos de la conversión a nuestra red de afiliados (partnernetwork.space) para que el socio que te refirió reciba el crédito y el pago correspondientes. Enviamos una referencia interna de cuenta no identificativa, el ID de factura de Stripe y el importe y la moneda del pago; nunca tu correo electrónico, tu nombre ni información sobre tu peque. También informamos de reembolsos y contracargos para poder revertir las comisiones del socio.",
+        ],
       ],
       afterList: [
         [
-          "Solo compartimos datos con los proveedores indicados arriba, únicamente para operar el servicio. No compartimos tus datos con ningún otro tercero.",
+          "Solo compartimos datos con las partes indicadas arriba — para operar el servicio y para atribuir referidos de socios. No compartimos tus datos con ningún otro tercero ni los vendemos.",
         ],
       ],
     },
@@ -314,7 +330,7 @@ const ES: PrivacyContent = {
       heading: "Cookies y sesiones",
       paragraphs: [
         [
-          "Nuestro proveedor de autenticación, Clerk, coloca cookies en tu navegador para mantener tu sesión iniciada y protegerla. Usamos el localStorage de tu navegador para guardar el progreso del test (de modo que puedas continuar si sales de la página) y para almacenar un identificador de analítica propio, generado de forma aleatoria (“tinyplan_anon_id”). Este identificador nos permite medir el uso agregado y sin IP de nuestras propias páginas; no está vinculado a tu identidad ni se comparte con terceros. No usamos cookies de publicidad ni de seguimiento de terceros.",
+          "Nuestro proveedor de autenticación, Clerk, coloca cookies en tu navegador para mantener tu sesión iniciada y protegerla. Usamos el localStorage de tu navegador para guardar el progreso del test (de modo que puedas continuar si sales de la página) y para almacenar un identificador de analítica propio, generado de forma aleatoria (“tinyplan_anon_id”). Este identificador nos permite medir el uso agregado y sin IP de nuestras propias páginas; no está vinculado a tu identidad ni se comparte con terceros. Si llegas a TinyPlan a través de un enlace de afiliado o socio, también colocamos una cookie propia (“pn_click”, que se conserva hasta 60 días) que registra el identificador de referido para poder acreditar al socio que te refirió si te suscribes; esta cookie no contiene información personal. No usamos cookies de publicidad ni de seguimiento de terceros.",
         ],
       ],
     },
