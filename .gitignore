@@ -45,3 +45,7 @@ next-env.d.ts
 /data/*.db-shm
 /data/*.db-wal
 /data/geoip/*.mmdb
+
+# local assistant/tooling state and one-off backups
+/.claude/
+*.bak-*

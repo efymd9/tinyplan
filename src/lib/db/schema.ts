@@ -93,6 +93,36 @@ export const payments = sqliteTable('payments', {
   created_at: integer('created_at'),
 });
 
+// ── Stripe Webhook Events ────────────────────────────────────────────────────
+// Raw event ledger for idempotency, replay, and reconciliation. The Stripe
+// event id is the primary key; duplicate deliveries are acknowledged without
+// re-running side effects.
+export const stripeEvents = sqliteTable('stripe_events', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  livemode: integer('livemode').default(0),
+  payload_json: text('payload_json').notNull(),
+  processed_at: integer('processed_at'),
+  error: text('error'),
+  created_at: integer('created_at'),
+});
+
+// ── Partner Network Delivery Queue ───────────────────────────────────────────
+// Stores affiliate conversion/reversal delivery attempts so non-2xx/network
+// failures are visible and can be retried instead of disappearing into logs.
+export const partnerNetworkEvents = sqliteTable('partner_network_events', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(),
+  external_payment_id: text('external_payment_id'),
+  payload_json: text('payload_json').notNull(),
+  status: text('status').default('pending'),
+  attempts: integer('attempts').default(0),
+  last_error: text('last_error'),
+  next_attempt_at: integer('next_attempt_at'),
+  created_at: integer('created_at'),
+  updated_at: integer('updated_at'),
+});
+
 // ── Weekly Check-ins ─────────────────────────────────────────────────────────
 export const weeklyCheckins = sqliteTable('weekly_checkins', {
   id: text('id').primaryKey(), // uuid

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth/magic-link';
 import { getActivePlan, getTodayDayNumber } from '@/lib/dashboard/helpers';
 import { getSkillByDay } from '@/data/parent-growth-path';
 import { resolveLocale, type Locale } from '@/lib/i18n/config';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _LLM_SYSTEM_PROMPT = `You are TinyPlan Coach, a parent-facing assistant for play, routines, and calm moments.
@@ -587,6 +588,13 @@ async function getTodayParentSkill(locale: Locale): Promise<string | null> {
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = checkRateLimit(request, {
+      namespace: 'chat',
+      limit: 30,
+      windowSeconds: 60,
+    });
+    if (limited) return limited;
+
     const body = await request.json();
     const { message, clarifications, locale: rawLocale } = body as {
       message?: string;

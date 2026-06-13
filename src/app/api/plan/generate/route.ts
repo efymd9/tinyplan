@@ -5,11 +5,19 @@ import { buildTagProfile } from "@/lib/quiz/tags";
 import { generateWeeklyPlan } from "@/lib/engine/plan-generator";
 import { FALLBACK_ACTIVITIES } from "@/lib/engine/fallback-activities";
 import { getCurrentUser } from "@/lib/auth/magic-link";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = checkRateLimit(req, {
+      namespace: "plan-generate",
+      limit: 10,
+      windowSeconds: 60,
+    });
+    if (limited) return limited;
+
     const { answers, quizSessionId } = await req.json();
 
     const tagProfile = buildTagProfile(answers);

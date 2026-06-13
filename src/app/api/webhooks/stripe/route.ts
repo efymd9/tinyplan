@@ -3,7 +3,7 @@ import type Stripe from 'stripe';
 import { and, eq, gte } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '@/lib/db';
-import { users, payments } from '@/lib/db/schema';
+import { users, payments, stripeEvents } from '@/lib/db/schema';
 import {
   verifyWebhookSignature,
   getInvoiceIdForCharge,
@@ -124,19 +124,62 @@ function recordPayment(opts: {
     .get();
   if (existing) return false;
 
-  db.insert(payments)
+  try {
+    db.insert(payments)
+      .values({
+        id: uuid(),
+        user_id: opts.userId,
+        stripe_session_id: opts.invoiceId,
+        stripe_subscription_id: opts.subscriptionId,
+        amount_cents: opts.amountCents,
+        currency: opts.currency,
+        status: opts.status,
+        created_at: now(),
+      })
+      .run();
+  } catch (err) {
+    // The DB has a unique index on stripe_session_id. If two webhook deliveries
+    // race, the loser should behave like a normal duplicate and skip side effects.
+    if (err instanceof Error && err.message.includes('UNIQUE')) return false;
+    throw err;
+  }
+  return true;
+}
+
+function recordStripeEventStart(event: Stripe.Event, rawBody: string): boolean {
+  const db = getDb();
+  const existing = db
+    .select({ id: stripeEvents.id })
+    .from(stripeEvents)
+    .where(eq(stripeEvents.id, event.id))
+    .get();
+  if (existing) return false;
+
+  db.insert(stripeEvents)
     .values({
-      id: uuid(),
-      user_id: opts.userId,
-      stripe_session_id: opts.invoiceId,
-      stripe_subscription_id: opts.subscriptionId,
-      amount_cents: opts.amountCents,
-      currency: opts.currency,
-      status: opts.status,
+      id: event.id,
+      type: event.type,
+      livemode: event.livemode ? 1 : 0,
+      payload_json: rawBody,
       created_at: now(),
     })
     .run();
   return true;
+}
+
+function recordStripeEventResult(eventId: string, error?: unknown) {
+  const db = getDb();
+  db.update(stripeEvents)
+    .set({
+      processed_at: now(),
+      error: error
+        ? error instanceof Error
+          ? error.stack || error.message
+          : String(error)
+        : null,
+    })
+    .where(eq(stripeEvents.id, eventId))
+    .run();
 }
 
 function handleSubscription(sub: Stripe.Subscription) {
@@ -266,6 +309,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
+  if (!recordStripeEventStart(event, body)) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed':
@@ -321,8 +368,10 @@ export async function POST(req: NextRequest) {
     // A processing error should not make Stripe hammer us forever, but it IS a
     // real bug — surface it and let Stripe retry a few times.
     console.error(`[stripe-webhook] error handling ${event.type}:`, err);
+    recordStripeEventResult(event.id, err);
     return NextResponse.json({ error: 'Handler error' }, { status: 500 });
   }
 
+  recordStripeEventResult(event.id);
   return NextResponse.json({ received: true });
 }

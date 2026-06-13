@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
 import { analyticsEvents } from '@/lib/db/schema';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // First-party analytics ingestion. Runs at request time so it can read the
 // user-agent / referer headers; never cached.
@@ -23,6 +24,13 @@ function clamp(value: unknown, max: number): string | null {
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = checkRateLimit(request, {
+      namespace: 'analytics',
+      limit: 120,
+      windowSeconds: 60,
+    });
+    if (limited) return limited;
+
     const body = await request.json();
     const { event, properties, userId, sessionId, path, referrer } = body;
 

@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { quizSessions } from "@/lib/db/schema";
 import { buildTagProfile } from "@/lib/quiz/tags";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { v4 as uuid } from "uuid";
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = checkRateLimit(req, {
+      namespace: "quiz-submit",
+      limit: 20,
+      windowSeconds: 60,
+    });
+    if (limited) return limited;
+
     const { answers } = await req.json();
     if (!answers || typeof answers !== "object") {
       return NextResponse.json({ error: "Answers required" }, { status: 400 });

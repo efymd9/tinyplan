@@ -4,7 +4,9 @@ import * as schema from './schema';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const DB_PATH = path.resolve(process.cwd(), 'data', 'tinyplan.db');
+const DB_PATH = process.env.DATABASE_PATH
+  ? path.resolve(process.env.DATABASE_PATH)
+  : path.resolve(process.cwd(), 'data', 'tinyplan.db');
 
 let _db: BetterSQLite3Database<typeof schema> | null = null;
 let _sqlite: Database.Database | null = null;
@@ -104,6 +106,29 @@ function createTables(sqlite: Database.Database) {
       created_at INTEGER
     );
 
+    CREATE TABLE IF NOT EXISTS stripe_events (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      livemode INTEGER DEFAULT 0,
+      payload_json TEXT NOT NULL,
+      processed_at INTEGER,
+      error TEXT,
+      created_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS partner_network_events (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      external_payment_id TEXT,
+      payload_json TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      attempts INTEGER DEFAULT 0,
+      last_error TEXT,
+      next_attempt_at INTEGER,
+      created_at INTEGER,
+      updated_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS weekly_checkins (
       id TEXT PRIMARY KEY,
       user_id TEXT REFERENCES users(id),
@@ -127,6 +152,13 @@ function createTables(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_analytics_event_name ON analytics_events(event_name);
     CREATE INDEX IF NOT EXISTS idx_analytics_session_id ON analytics_events(session_id);
     CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_stripe_session_id_unique
+      ON payments(stripe_session_id)
+      WHERE stripe_session_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_stripe_events_type ON stripe_events(type);
+    CREATE INDEX IF NOT EXISTS idx_stripe_events_created_at ON stripe_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_partner_network_events_status_next_attempt
+      ON partner_network_events(status, next_attempt_at);
   `);
 }
 
