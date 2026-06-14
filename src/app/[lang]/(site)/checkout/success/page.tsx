@@ -1,119 +1,47 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense, useRef } from "react";
+import { useEffect, Suspense, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { useAnalytics } from "@/lib/analytics/use-analytics";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 const PENDING_PLAN_KEY = "tinyplan_pending_plan_id";
 
-// Checkout-success-specific copy. Shared chrome (the "Something went wrong"
-// heading, "Loading...", "Try again") comes from the dictionary via useT().
 const COPY = {
   es: {
     buildingTitle: "Creando tu plan...",
-    buildingSubtitle: "Estamos preparando tu plan de actividades de 7 días personalizado.",
-    generateError: "No pudimos generar tu plan. Inténtalo de nuevo.",
-    retakeQuiz: "Repetir el test",
+    buildingSubtitle: "Estamos preparando tu cuenta para mostrar tu plan.",
   },
   en: {
     buildingTitle: "Building your plan...",
-    buildingSubtitle: "Setting up your personalized 7-day activity plan.",
-    generateError: "Failed to generate your plan. Please try again.",
-    retakeQuiz: "Retake Quiz",
+    buildingSubtitle: "Setting up your account so you can see your plan.",
   },
 } as const;
 
 function SuccessContent() {
-  const { track } = useAnalytics();
   const router = useRouter();
   const locale = useLocale();
-  const t = useT();
   const copy = COPY[locale];
-
-  const parsedAnswers = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = sessionStorage.getItem(RESULT_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      return parsed.answers as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const [error, setError] = useState("");
-  const generatingRef = useRef(false);
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
-    // No quiz answers to build from (e.g. a refresh after the plan was already
-    // generated). Hand off to reveal, which tolerates a pending reclaim. We do
-    // NOT fire purchase_completed here — reaching this page is not, on its own,
-    // proof that a plan was generated this session (B4).
-    if (!parsedAnswers) {
-      router.replace(localizeHref("/dashboard/reveal", locale));
-      return;
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+
+    // Plan generation now happens server-side from the paid Stripe checkout's
+    // persisted quiz session. Clear the old browser-only handoff keys so a paid
+    // buyer's access does not depend on this tab, this device, or localStorage.
+    try {
+      sessionStorage.removeItem(RESULT_STORAGE_KEY);
+      localStorage.removeItem(PENDING_PLAN_KEY);
+    } catch {
+      // Storage may be unavailable in private mode; server-side checkout state
+      // is still the source of truth.
     }
 
-    if (generatingRef.current) return;
-    generatingRef.current = true;
-
-    fetch("/api/plan/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers: parsedAnswers }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Plan generation failed");
-        return res.json() as Promise<{ planId?: string }>;
-      })
-      .then((data) => {
-        // The plan was generated anonymously. Stash its id so the reclaimer
-        // (mounted in the dashboard layout) can adopt it right after sign-in.
-        if (data?.planId) {
-          try {
-            localStorage.setItem(PENDING_PLAN_KEY, data.planId);
-          } catch {
-            // localStorage may be unavailable (private mode); reveal still
-            // tolerates a missing pending id.
-          }
-        }
-        // Only now — after a confirmed, successful plan generation — record the
-        // purchase (B4: do not treat merely reaching this page as a purchase).
-        track({ event: "purchase_completed", properties: { amount: 100 } });
-        sessionStorage.removeItem(RESULT_STORAGE_KEY);
-        router.replace(localizeHref("/dashboard/reveal", locale));
-      })
-      .catch((err) => {
-        console.error("Plan generation error:", err);
-        setError(copy.generateError);
-        generatingRef.current = false;
-      });
-  }, [track, parsedAnswers, router, locale, copy.generateError]);
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-destructive/10 to-destructive/5 shadow-elevated flex items-center justify-center mx-auto mb-6">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-destructive">
-              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold mb-2">{t.common.error}</h1>
-          <p className="text-muted-foreground mb-6">{error}</p>
-          <Link href={localizeHref("/quiz", locale)}>
-            <Button size="lg" className="w-full">{copy.retakeQuiz}</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+    router.replace(localizeHref("/dashboard/reveal", locale));
+  }, [router, locale]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">

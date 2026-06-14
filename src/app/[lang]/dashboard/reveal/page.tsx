@@ -145,6 +145,7 @@ export default async function PlanRevealPage({
       <PendingPlanGate
         settingUpLabel={copy.settingUp}
         quizHref={localizeHref("/quiz", locale)}
+        waitForServerPlan={user.subscriptionStatus === "trial" || user.subscriptionStatus === "active"}
       />
     );
   }

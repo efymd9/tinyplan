@@ -4,8 +4,10 @@ import { createCheckoutSession } from "@/lib/payments/stripe";
 import { getCurrentUser } from "@/lib/auth/magic-link";
 import { resolveLocale } from "@/lib/i18n/config";
 import { getDb } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { quizSessions, users } from "@/lib/db/schema";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { buildTagProfile } from "@/lib/quiz/tags";
+import { normalizeQuizAnswers } from "@/lib/plans/create-plan";
 import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 
@@ -62,6 +64,26 @@ export async function POST(req: NextRequest) {
         .run();
     }
 
+    const parsedAnswers = normalizeQuizAnswers(answers);
+    let quizSessionId: string | undefined;
+    if (parsedAnswers) {
+      const now = Math.floor(Date.now() / 1000);
+      const tagProfile = buildTagProfile(parsedAnswers);
+      quizSessionId = uuid();
+      db.insert(quizSessions)
+        .values({
+          id: quizSessionId,
+          user_id: userId,
+          answers_json: JSON.stringify(parsedAnswers),
+          tags_json: JSON.stringify(tagProfile),
+          play_profile: tagProfile.play_profile,
+          completed: 1,
+          created_at: now,
+          updated_at: now,
+        })
+        .run();
+    }
+
     const jar = await cookies();
     const locale = resolveLocale(jar.get("tinyplan_locale")?.value);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -69,7 +91,7 @@ export async function POST(req: NextRequest) {
     const result = await createCheckoutSession({
       userEmail: hasCustomerEmail ? submittedEmail : undefined,
       userId,
-      quizSessionId: answers ? "quiz_" + Date.now() : undefined,
+      quizSessionId,
       successUrl: `${baseUrl}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/${locale}/result`,
       // Affiliate attribution: forward the captured partner click id (if any).

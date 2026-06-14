@@ -3,12 +3,13 @@ import type Stripe from 'stripe';
 import { and, eq, gte } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '@/lib/db';
-import { users, payments, stripeEvents } from '@/lib/db/schema';
+import { users, payments, plans, quizSessions, stripeEvents } from '@/lib/db/schema';
 import {
   verifyWebhookSignature,
   getInvoiceIdForCharge,
 } from '@/lib/payments/stripe';
 import { pnConversion, pnReversal } from '@/lib/partner-network';
+import { createPlanForUser, normalizeQuizAnswers } from '@/lib/plans/create-plan';
 
 // Minimum paid amount that counts as a qualifying sale for the affiliate network
 // — 900 cents = $9.00, mirroring the offer's minAmount. The $1 intro is below
@@ -125,6 +126,42 @@ function adoptStripeEmail(user: { id: string; email: string }, email: string | n
 }
 
 /**
+ * Ensure the paid checkout's plan is persisted server-side. This makes checkout
+ * abandonment safe: even if the buyer closes the browser before Clerk signup,
+ * their paid local user already owns an active generated plan.
+ */
+function ensurePaidCheckoutPlan(user: { id: string }, quizSessionId: string | null) {
+  if (!quizSessionId) return;
+
+  const db = getDb();
+  const existingPlan = db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(and(eq(plans.user_id, user.id), eq(plans.quiz_session_id, quizSessionId)))
+    .get();
+  if (existingPlan) return;
+
+  const quizSession = db
+    .select()
+    .from(quizSessions)
+    .where(eq(quizSessions.id, quizSessionId))
+    .get();
+  if (!quizSession) return;
+
+  const answers = normalizeQuizAnswers(quizSession.answers_json);
+  if (!answers) return;
+
+  if (quizSession.user_id !== user.id) {
+    db.update(quizSessions)
+      .set({ user_id: user.id, updated_at: now() })
+      .where(eq(quizSessions.id, quizSessionId))
+      .run();
+  }
+
+  createPlanForUser({ userId: user.id, answers, quizSessionId });
+}
+
+/**
  * Upsert a payments row for an invoice, keyed on the Stripe invoice id.
  *
  * The payments table has no dedicated invoice column, so we store the invoice
@@ -226,6 +263,8 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const subscriptionId = asId(subDetails?.subscription ?? null);
   const userId =
     (subDetails?.metadata?.userId as string | undefined) || null;
+  const quizSessionId =
+    (subDetails?.metadata?.quizSessionId as string | undefined) || null;
   const customerId = asId(invoice.customer);
   const email = invoice.customer_email;
 
@@ -233,6 +272,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   if (!user) return; // unknown user — tolerated
 
   adoptStripeEmail(user, email);
+  ensurePaidCheckoutPlan(user, quizSessionId);
 
   // A paid invoice means access is granted (covers both the trial-start and
   // the recurring renewal cases).
@@ -310,6 +350,7 @@ function handleInvoiceFailed(invoice: Stripe.Invoice) {
 
 function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = (session.metadata?.userId as string | undefined) || null;
+  const quizSessionId = (session.metadata?.quizSessionId as string | undefined) || null;
   const customerId = asId(session.customer);
   const email =
     session.customer_email ?? session.customer_details?.email ?? null;
@@ -318,6 +359,7 @@ function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (!user) return;
 
   adoptStripeEmail(user, email);
+  ensurePaidCheckoutPlan(user, quizSessionId);
 
   // Record the customer id so the billing portal can find them later. The
   // subscription.created / invoice.paid events set the concrete status.

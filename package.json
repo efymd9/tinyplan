@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:checkout-persistence": "node scripts/smoke-checkout-persistence.mjs",
+    "smoke:paid-webhook-plan": "node scripts/smoke-paid-checkout-webhook-plan.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.2",

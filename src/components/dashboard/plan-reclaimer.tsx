@@ -89,9 +89,11 @@ export default function PlanReclaimer() {
 export function PendingPlanGate({
   settingUpLabel,
   quizHref,
+  waitForServerPlan = false,
 }: {
   settingUpLabel: string;
   quizHref: string;
+  waitForServerPlan?: boolean;
 }) {
   const router = useRouter();
   // Resolve "is there a pending plan?" once, lazily, on first client render.
@@ -106,14 +108,22 @@ export function PendingPlanGate({
       // just wait for that refresh to bring the adopted plan into view.
       return;
     }
+    if (waitForServerPlan) {
+      // Paid checkout plans are now generated server-side from Stripe webhook
+      // metadata. If the user reaches reveal while the webhook is still in
+      // flight, keep refreshing briefly instead of bouncing a paid customer to
+      // the quiz.
+      const id = window.setInterval(() => router.refresh(), 2500);
+      return () => window.clearInterval(id);
+    }
     // No pending plan to set up — send them to the quiz.
     router.replace(quizHref);
-  }, [router, quizHref, hasPending]);
+  }, [router, quizHref, hasPending, waitForServerPlan]);
 
-  // While a reclaim is in flight (pending id present), show a spinner rather
-  // than flashing the quiz redirect. When nothing is pending the effect above
-  // redirects; render nothing in that frame.
-  if (!hasPending) return null;
+  // While a reclaim/server-side generation is in flight, show a spinner rather
+  // than flashing the quiz redirect. When nothing is pending and the user is not
+  // paid, the effect above redirects; render nothing in that frame.
+  if (!hasPending && !waitForServerPlan) return null;
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
