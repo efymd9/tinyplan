@@ -21,6 +21,7 @@ const networkUrl = process.env.PN_NETWORK_URL || 'https://partnernetwork.space';
 const offerKey = process.env.PN_OFFER_KEY || '';
 const signingSecret = process.env.PN_SIGNING_SECRET || '';
 const limit = Number(process.env.PN_RETRY_LIMIT || '25');
+const maxAttempts = Number(process.env.PN_RETRY_MAX_ATTEMPTS || '10');
 
 if (!offerKey || !signingSecret) {
   console.log('[partner-network-retry] PN credentials not configured; nothing to send.');
@@ -64,9 +65,12 @@ function endpointFor(kind) {
 
 let sent = 0;
 let failed = 0;
+let deadLettered = 0;
 
 for (const row of rows) {
   const attempts = Number(row.attempts || 0) + 1;
+  let permanent = false;
+  let errMsg = '';
   try {
     const res = await fetch(`${networkUrl}${endpointFor(row.kind)}`, {
       method: 'POST',
@@ -74,26 +78,43 @@ for (const row of rows) {
       body: row.payload_json,
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) throw new Error(`${res.status} ${await res.text().catch(() => '')}`.trim());
+    if (res.ok) {
+      db.prepare(`
+        UPDATE partner_network_events
+        SET status = 'sent', attempts = ?, last_error = NULL, next_attempt_at = NULL, updated_at = ?
+        WHERE id = ?
+      `).run(attempts, now, row.id);
+      sent += 1;
+      continue;
+    }
+    errMsg = `${res.status} ${await res.text().catch(() => '')}`.trim();
+    // 4xx (except 429 Too Many Requests) means the request is rejected/malformed
+    // — retrying won't help, so dead-letter it instead of looping forever.
+    if (res.status >= 400 && res.status < 500 && res.status !== 429) permanent = true;
+  } catch (err) {
+    errMsg = err instanceof Error ? err.message : String(err);
+  }
 
+  if (permanent || attempts >= maxAttempts) {
+    // Dead-letter: mark 'failed' so it leaves the retry queue. Operators can
+    // inspect failed rows; last_error records why.
     db.prepare(`
       UPDATE partner_network_events
-      SET status = 'sent', attempts = ?, last_error = NULL, next_attempt_at = NULL, updated_at = ?
+      SET status = 'failed', attempts = ?, last_error = ?, next_attempt_at = NULL, updated_at = ?
       WHERE id = ?
-    `).run(attempts, now, row.id);
-    sent += 1;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    `).run(attempts, errMsg, now, row.id);
+    deadLettered += 1;
+  } else {
     const delay = Math.min(24 * 60 * 60, 5 * 60 * Math.pow(2, Math.min(attempts - 1, 8)));
     db.prepare(`
       UPDATE partner_network_events
       SET attempts = ?, last_error = ?, next_attempt_at = ?, updated_at = ?
       WHERE id = ?
-    `).run(attempts, msg, now + delay, now, row.id);
+    `).run(attempts, errMsg, now + delay, now, row.id);
     failed += 1;
   }
 }
 
-if (rows.length || sent || failed) {
-  console.log(`[partner-network-retry] scanned=${rows.length} sent=${sent} failed=${failed}`);
+if (rows.length || sent || failed || deadLettered) {
+  console.log(`[partner-network-retry] scanned=${rows.length} sent=${sent} failed=${failed} dead_lettered=${deadLettered}`);
 }

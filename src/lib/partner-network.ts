@@ -4,13 +4,21 @@
 // break Stripe webhook handling / billing.
 import crypto from "node:crypto";
 import { v4 as uuid } from "uuid";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { partnerNetworkEvents } from "@/lib/db/schema";
 
-const NETWORK_URL = process.env.PN_NETWORK_URL || "https://partnernetwork.space";
-const OFFER_KEY = process.env.PN_OFFER_KEY || "";
-const SIGNING_SECRET = process.env.PN_SIGNING_SECRET || "";
+type Db = ReturnType<typeof getDb>;
+
+// Read config lazily (not at module load) so env set after import — and tests —
+// see the current values.
+function config() {
+  return {
+    networkUrl: process.env.PN_NETWORK_URL || "https://partnernetwork.space",
+    offerKey: process.env.PN_OFFER_KEY || "",
+    signingSecret: process.env.PN_SIGNING_SECRET || "",
+  };
+}
 
 type PnEvent = "lead" | "trial" | "sale" | "rebill";
 type PnKind = "conversion" | "refund" | "chargeback";
@@ -19,29 +27,72 @@ function now() {
   return Math.floor(Date.now() / 1000);
 }
 
-function signedHeaders(rawBody: string): Record<string, string> {
+function signedHeaders(rawBody: string, signingSecret: string, offerKey: string): Record<string, string> {
   const ts = Math.floor(Date.now() / 1000).toString();
   const nonce = crypto.randomBytes(12).toString("hex");
   const sig = crypto
-    .createHmac("sha256", SIGNING_SECRET)
+    .createHmac("sha256", signingSecret)
     .update(`${ts}.${nonce}.${rawBody}`)
     .digest("hex");
   return {
     "Content-Type": "application/json",
-    "X-Offer-Key": OFFER_KEY,
+    "X-Offer-Key": offerKey,
     "X-Ingest-Timestamp": ts,
     "X-Ingest-Nonce": nonce,
     "X-Ingest-Signature": sig,
   };
 }
 
+/** True only when a Stripe charge has been refunded in FULL (not a partial refund). */
+export function isFullRefund(charge: { refunded?: boolean | null }): boolean {
+  return charge.refunded === true;
+}
+
+/**
+ * Whether a reversal (refund/chargeback) for this payment should be reported:
+ * only if we actually reported a conversion for it, and only once per payment.
+ * Prevents (a) clawing back organic refunds we never reported and (b)
+ * double-counting when several Stripe events (partial+full refund, refund+
+ * dispute) resolve to the same invoice id.
+ */
+export function shouldSendReversal(db: Db, externalPaymentId: string): boolean {
+  const hadConversion = db
+    .select({ id: partnerNetworkEvents.id })
+    .from(partnerNetworkEvents)
+    .where(
+      and(
+        eq(partnerNetworkEvents.kind, "conversion"),
+        eq(partnerNetworkEvents.external_payment_id, externalPaymentId)
+      )
+    )
+    .get();
+  if (!hadConversion) return false;
+
+  const alreadyReversed = db
+    .select({ id: partnerNetworkEvents.id })
+    .from(partnerNetworkEvents)
+    .where(
+      and(
+        inArray(partnerNetworkEvents.kind, ["refund", "chargeback"]),
+        eq(partnerNetworkEvents.external_payment_id, externalPaymentId)
+      )
+    )
+    .get();
+  return !alreadyReversed;
+}
+
 async function deliver(kind: PnKind, endpoint: string, payload: object, externalPaymentId?: string) {
-  if (!OFFER_KEY || !SIGNING_SECRET) return;
+  const { networkUrl, offerKey, signingSecret } = config();
+  if (!offerKey || !signingSecret) return;
 
   const db = getDb();
   const id = uuid();
   const createdAt = now();
-  const body = JSON.stringify(payload);
+  // Carry a STABLE idempotency key in the (signed, stored) body — the row id,
+  // which is constant across retries — so the receiver can dedup re-sends
+  // regardless of the per-attempt X-Ingest-Nonce. The retry cron re-sends this
+  // exact stored body, keeping it byte-identical.
+  const body = JSON.stringify({ ...payload, idempotency_key: id });
 
   db.insert(partnerNetworkEvents)
     .values({
@@ -57,9 +108,9 @@ async function deliver(kind: PnKind, endpoint: string, payload: object, external
     .run();
 
   try {
-    const res = await fetch(`${NETWORK_URL}${endpoint}`, {
+    const res = await fetch(`${networkUrl}${endpoint}`, {
       method: "POST",
-      headers: signedHeaders(body),
+      headers: signedHeaders(body, signingSecret, offerKey),
       body,
       signal: AbortSignal.timeout(5000),
     });
@@ -121,6 +172,13 @@ export async function pnReversal(
   kind: "refund" | "chargeback"
 ): Promise<void> {
   if (!externalPaymentId) return;
+
+  const { offerKey, signingSecret } = config();
+  if (!offerKey || !signingSecret) return;
+
+  // Only report a clawback for a payment we actually reported as a conversion,
+  // and at most once — see shouldSendReversal.
+  if (!shouldSendReversal(getDb(), externalPaymentId)) return;
 
   await deliver(
     kind,
