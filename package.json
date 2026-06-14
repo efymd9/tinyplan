@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:checkout-persistence": "node scripts/smoke-checkout-persistence.mjs",
     "smoke:paid-webhook-plan": "node scripts/smoke-paid-checkout-webhook-plan.mjs"

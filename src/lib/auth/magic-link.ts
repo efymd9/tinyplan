@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '@/lib/db';
 import { users } from '@/lib/db/schema';
+import { normalizeEmail } from '@/lib/auth/email';
 
 const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || 'tinyplan-dev-secret-change-in-production'
@@ -143,9 +144,10 @@ export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
   if (!userId) return null;
 
   const clerkUser = await currentUser();
-  const email =
+  const email = normalizeEmail(
     clerkUser?.primaryEmailAddress?.emailAddress ??
-    clerkUser?.emailAddresses?.[0]?.emailAddress;
+      clerkUser?.emailAddresses?.[0]?.emailAddress
+  );
   if (!email) return null;
 
   const db = getDb();

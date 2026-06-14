@@ -3,13 +3,19 @@ import type Stripe from 'stripe';
 import { and, eq, gte } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '@/lib/db';
-import { users, payments, plans, quizSessions, stripeEvents } from '@/lib/db/schema';
+import { users, payments, plans, quizSessions } from '@/lib/db/schema';
 import {
   verifyWebhookSignature,
   getInvoiceIdForCharge,
 } from '@/lib/payments/stripe';
+import {
+  beginStripeEvent,
+  completeStripeEvent,
+  failStripeEvent,
+} from '@/lib/payments/stripe-events';
 import { pnConversion, pnReversal } from '@/lib/partner-network';
 import { createPlanForUser, normalizeQuizAnswers } from '@/lib/plans/create-plan';
+import { normalizeEmail } from '@/lib/auth/email';
 
 // Minimum paid amount that counts as a qualifying sale for the affiliate network
 // — 900 cents = $9.00, mirroring the offer's minAmount. The $1 intro is below
@@ -66,8 +72,8 @@ function isCheckoutPlaceholderEmail(email: string | null | undefined): boolean {
 }
 
 function normalizeStripeEmail(email: string | null | undefined): string | null {
-  const normalized = email?.trim().toLowerCase();
-  return normalized && normalized.includes('@') ? normalized : null;
+  const normalized = normalizeEmail(email);
+  return normalized.includes('@') ? normalized : null;
 }
 
 function resolveUser(opts: {
@@ -82,7 +88,7 @@ function resolveUser(opts: {
   }
 
   if (opts.email) {
-    const email = opts.email.trim().toLowerCase();
+    const email = normalizeEmail(opts.email);
     if (email) {
       const byEmail = db
         .select()
@@ -208,42 +214,6 @@ function recordPayment(opts: {
     throw err;
   }
   return true;
-}
-
-function recordStripeEventStart(event: Stripe.Event, rawBody: string): boolean {
-  const db = getDb();
-  const existing = db
-    .select({ id: stripeEvents.id })
-    .from(stripeEvents)
-    .where(eq(stripeEvents.id, event.id))
-    .get();
-  if (existing) return false;
-
-  db.insert(stripeEvents)
-    .values({
-      id: event.id,
-      type: event.type,
-      livemode: event.livemode ? 1 : 0,
-      payload_json: rawBody,
-      created_at: now(),
-    })
-    .run();
-  return true;
-}
-
-function recordStripeEventResult(eventId: string, error?: unknown) {
-  const db = getDb();
-  db.update(stripeEvents)
-    .set({
-      processed_at: now(),
-      error: error
-        ? error instanceof Error
-          ? error.stack || error.message
-          : String(error)
-        : null,
-    })
-    .where(eq(stripeEvents.id, eventId))
-    .run();
 }
 
 function handleSubscription(sub: Stripe.Subscription) {
@@ -382,7 +352,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  if (!recordStripeEventStart(event, body)) {
+  const db = getDb();
+  if (!beginStripeEvent(db, event, body)) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 
@@ -441,10 +412,10 @@ export async function POST(req: NextRequest) {
     // A processing error should not make Stripe hammer us forever, but it IS a
     // real bug — surface it and let Stripe retry a few times.
     console.error(`[stripe-webhook] error handling ${event.type}:`, err);
-    recordStripeEventResult(event.id, err);
+    failStripeEvent(db, event.id, err);
     return NextResponse.json({ error: 'Handler error' }, { status: 500 });
   }
 
-  recordStripeEventResult(event.id);
+  completeStripeEvent(db, event.id);
   return NextResponse.json({ received: true });
 }

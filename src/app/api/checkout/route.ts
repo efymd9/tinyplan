@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createCheckoutSession } from "@/lib/payments/stripe";
 import { getCurrentUser } from "@/lib/auth/magic-link";
+import { normalizeEmail } from "@/lib/auth/email";
 import { resolveLocale } from "@/lib/i18n/config";
 import { getDb } from "@/lib/db";
 import { quizSessions, users } from "@/lib/db/schema";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     const { email, answers } = body;
 
     const user = await getCurrentUser();
-    const submittedEmail = (user?.email || email || "").trim().toLowerCase();
+    const submittedEmail = normalizeEmail(user?.email || email);
     const hasCustomerEmail = isValidEmail(submittedEmail);
 
     const db = getDb();
@@ -45,7 +46,10 @@ export async function POST(req: NextRequest) {
     const localEmail = hasCustomerEmail
       ? submittedEmail
       : checkoutPlaceholderEmail(userId);
-    if (!existing) {
+    // Only provision a new row for a truly anonymous funnel visitor. A signed-in
+    // user already has a row (provisioned by getCurrentUser); re-inserting by
+    // user.id would hit a PRIMARY KEY conflict and 500 the whole checkout.
+    if (!existing && !user) {
       const now = Math.floor(Date.now() / 1000);
       // Provision the local user row before creating Stripe Checkout. Anonymous
       // funnel visitors no longer provide an email before checkout; Stripe
@@ -57,7 +61,9 @@ export async function POST(req: NextRequest) {
           id: userId,
           email: localEmail,
           name: null,
-          subscription_status: user?.subscriptionStatus || "free",
+          // Only reached for anonymous visitors (see guard above), so a fresh
+          // placeholder always starts free.
+          subscription_status: "free",
           created_at: now,
           updated_at: now,
         })

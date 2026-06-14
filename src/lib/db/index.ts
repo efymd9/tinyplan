@@ -4,15 +4,19 @@ import * as schema from './schema';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const DB_PATH = process.env.DATABASE_PATH
-  ? path.resolve(process.env.DATABASE_PATH)
-  : path.resolve(process.cwd(), 'data', 'tinyplan.db');
+// Resolved lazily (at first getDb call) rather than at import time so tests can
+// point DATABASE_PATH at a throwaway file before opening the connection.
+function resolveDbPath(): string {
+  return process.env.DATABASE_PATH
+    ? path.resolve(process.env.DATABASE_PATH)
+    : path.resolve(process.cwd(), 'data', 'tinyplan.db');
+}
 
 let _db: BetterSQLite3Database<typeof schema> | null = null;
 let _sqlite: Database.Database | null = null;
 
-function ensureDataDir() {
-  const dir = path.dirname(DB_PATH);
+function ensureDataDir(dbPath: string) {
+  const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -182,15 +186,37 @@ function migrateSchema(sqlite: Database.Database) {
       sqlite.exec(`ALTER TABLE analytics_events ADD COLUMN ${column} ${type}`);
     }
   }
+
+  migrateUserEmailsToLowercase(sqlite);
+}
+
+// Canonicalize historical mixed-case emails so case-insensitive lookups (Clerk
+// sign-in returns the email verbatim, while the Stripe path stores it
+// lowercased) resolve to a single `users` row. Rows whose lowercased form would
+// collide with another row are left untouched for manual reconciliation rather
+// than crashing the migration on the UNIQUE(email) constraint. Idempotent.
+export function migrateUserEmailsToLowercase(sqlite: Database.Database) {
+  sqlite.exec(`
+    UPDATE users SET email = lower(email)
+    WHERE email <> lower(email)
+      AND NOT EXISTS (
+        SELECT 1 FROM users u2
+        WHERE u2.id <> users.id AND u2.email = lower(users.email)
+      );
+  `);
 }
 
 export function getDb(): BetterSQLite3Database<typeof schema> {
   if (_db) return _db;
 
-  ensureDataDir();
+  const dbPath = resolveDbPath();
+  ensureDataDir(dbPath);
 
-  _sqlite = new Database(DB_PATH);
+  _sqlite = new Database(dbPath);
   _sqlite.pragma('journal_mode = WAL');
+  // Wait up to 5s for a write lock instead of throwing SQLITE_BUSY immediately —
+  // a transient busy error in the Stripe webhook would otherwise fail the event.
+  _sqlite.pragma('busy_timeout = 5000');
   _sqlite.pragma('foreign_keys = ON');
 
   createTables(_sqlite);
