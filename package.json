@@ -11,7 +11,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:checkout-persistence": "node scripts/smoke-checkout-persistence.mjs",
-    "smoke:paid-webhook-plan": "node scripts/smoke-paid-checkout-webhook-plan.mjs"
+    "smoke:paid-webhook-plan": "node scripts/smoke-paid-checkout-webhook-plan.mjs",
+    "smoke:webhook-idempotency": "node scripts/smoke-webhook-idempotency.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.2",
