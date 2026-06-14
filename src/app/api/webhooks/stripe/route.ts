@@ -16,6 +16,7 @@ import {
 import { pnConversion, pnReversal } from '@/lib/partner-network';
 import { createPlanForUser, normalizeQuizAnswers } from '@/lib/plans/create-plan';
 import { normalizeEmail } from '@/lib/auth/email';
+import { mergeUserInto } from '@/lib/auth/merge-users';
 
 // Minimum paid amount that counts as a qualifying sale for the affiliate network
 // — 900 cents = $9.00, mirroring the offer's minAmount. The $1 intro is below
@@ -126,7 +127,14 @@ function adoptStripeEmail(user: { id: string; email: string }, email: string | n
 
   const db = getDb();
   const existing = db.select().from(users).where(eq(users.email, normalized)).get();
-  if (existing && existing.id !== user.id) return;
+  if (existing && existing.id !== user.id) {
+    // The buyer signed up via Clerk before this webhook fired, so a separate row
+    // already owns the real email. Merge that (free, planless) row's children
+    // into the paid placeholder and delete it, freeing the email to adopt — so
+    // the buyer's authenticated identity resolves to the row holding their plan
+    // instead of being stranded on a separate free row.
+    mergeUserInto(db, existing.id, user.id);
+  }
 
   updateUser(user.id, { email: normalized });
 }
