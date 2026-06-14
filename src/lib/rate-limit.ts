@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { clientIp } from './request-ip';
 
 type Bucket = {
   count: number;
@@ -19,18 +20,6 @@ export type RateLimitOptions = {
 const buckets = new Map<string, Bucket>();
 const MAX_BUCKETS = 10_000;
 
-function clientAddress(req: NextRequest): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() || 'unknown';
-
-  return (
-    req.headers.get('x-real-ip') ||
-    req.headers.get('cf-connecting-ip') ||
-    req.headers.get('fly-client-ip') ||
-    'unknown'
-  );
-}
-
 function cleanup(now: number) {
   if (buckets.size < MAX_BUCKETS) return;
   for (const [key, bucket] of buckets) {
@@ -45,7 +34,7 @@ export function checkRateLimit(
   const now = Date.now();
   cleanup(now);
 
-  const identity = options.key?.trim() || clientAddress(req);
+  const identity = options.key?.trim() || clientIp(req.headers);
   const bucketKey = `${options.namespace}:${identity}`;
   const windowMs = options.windowSeconds * 1000;
 

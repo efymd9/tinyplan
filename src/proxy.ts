@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Reader, type CountryResponse } from "mmdb-lib";
 import { locales, defaultLocale, isLocale } from "@/lib/i18n/config";
+import { clientIp } from "@/lib/request-ip";
 
 const COOKIE = "tinyplan_locale";
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -50,11 +51,11 @@ function getGeoReader(): Reader<CountryResponse> | null {
 function clientCountry(request: NextRequest): string | null {
   const reader = getGeoReader();
   if (!reader) return null;
-  // Behind Caddy the real client IP arrives in X-Forwarded-For.
-  const xff = request.headers.get("x-forwarded-for");
-  let ip = xff?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "";
+  // Behind a single Caddy hop the trustworthy client IP is the rightmost
+  // X-Forwarded-For entry (see clientIp). Never the spoofable leftmost token.
+  let ip = clientIp(request.headers);
+  if (ip === "unknown") return null;
   if (ip.startsWith("::ffff:")) ip = ip.slice(7); // IPv4-mapped IPv6
-  if (!ip) return null;
   try {
     return reader.get(ip)?.country?.iso_code ?? null;
   } catch {
