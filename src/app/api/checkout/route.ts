@@ -9,6 +9,16 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 
+const CHECKOUT_PLACEHOLDER_EMAIL_DOMAIN = "checkout.tinyplan.local";
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function checkoutPlaceholderEmail(userId: string): string {
+  return `${userId}@${CHECKOUT_PLACEHOLDER_EMAIL_DOMAIN}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const limited = checkRateLimit(req, {
@@ -22,26 +32,28 @@ export async function POST(req: NextRequest) {
     const { email, answers } = body;
 
     const user = await getCurrentUser();
-    const userEmail = (user?.email || email || "").trim().toLowerCase();
-    if (!userEmail || !userEmail.includes("@")) {
-      return NextResponse.json(
-        { error: "A valid email is required before checkout." },
-        { status: 400 }
-      );
-    }
+    const submittedEmail = (user?.email || email || "").trim().toLowerCase();
+    const hasCustomerEmail = isValidEmail(submittedEmail);
 
     const db = getDb();
-    const existing = db.select().from(users).where(eq(users.email, userEmail)).get();
+    const existing = hasCustomerEmail
+      ? db.select().from(users).where(eq(users.email, submittedEmail)).get()
+      : null;
     const userId = existing?.id || user?.id || uuid();
+    const localEmail = hasCustomerEmail
+      ? submittedEmail
+      : checkoutPlaceholderEmail(userId);
     if (!existing) {
       const now = Math.floor(Date.now() / 1000);
-      // Provision the local user row before creating Stripe Checkout. This
-      // closes the anonymous buyer gap: Stripe webhooks can resolve by email
-      // immediately, and Clerk sign-in later adopts this same row by email.
+      // Provision the local user row before creating Stripe Checkout. Anonymous
+      // funnel visitors no longer provide an email before checkout; Stripe
+      // Checkout collects it natively. Until the webhook sends that real email,
+      // keep a non-deliverable local placeholder so metadata.userId can still
+      // resolve payments/subscription events to a stable user row.
       db.insert(users)
         .values({
           id: userId,
-          email: userEmail,
+          email: localEmail,
           name: null,
           subscription_status: user?.subscriptionStatus || "free",
           created_at: now,
@@ -55,7 +67,7 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     const result = await createCheckoutSession({
-      userEmail,
+      userEmail: hasCustomerEmail ? submittedEmail : undefined,
       userId,
       quizSessionId: answers ? "quiz_" + Date.now() : undefined,
       successUrl: `${baseUrl}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,

@@ -15,6 +15,7 @@ import { pnConversion, pnReversal } from '@/lib/partner-network';
 // this, so it is reported as a "trial"; the first $14.99 charge clears it and is
 // a "sale".
 const PN_QUALIFY_CENTS = 900;
+const CHECKOUT_PLACEHOLDER_EMAIL_DOMAIN = 'checkout.tinyplan.local';
 
 // Stripe needs the raw, unparsed request body to verify the signature, so this
 // handler reads `await req.text()` (Next.js 16 has no body-parser config knob).
@@ -59,10 +60,19 @@ const now = () => Math.floor(Date.now() / 1000);
  * Returns the row, or null when no matching local user exists (the webhook is
  * tolerant of unknown users and responds 200 in that case).
  */
+function isCheckoutPlaceholderEmail(email: string | null | undefined): boolean {
+  return !!email && email.endsWith(`@${CHECKOUT_PLACEHOLDER_EMAIL_DOMAIN}`);
+}
+
+function normalizeStripeEmail(email: string | null | undefined): string | null {
+  const normalized = email?.trim().toLowerCase();
+  return normalized && normalized.includes('@') ? normalized : null;
+}
+
 function resolveUser(opts: {
   userId?: string | null;
   email?: string | null;
-}): { id: string } | null {
+}): { id: string; email: string } | null {
   const db = getDb();
 
   if (opts.userId) {
@@ -88,13 +98,30 @@ function resolveUser(opts: {
 /** Idempotently update a user's status + stripe_customer_id. */
 function updateUser(
   userId: string,
-  fields: { status?: LocalStatus; customerId?: string | null }
+  fields: { status?: LocalStatus; customerId?: string | null; email?: string | null }
 ) {
   const db = getDb();
   const set: Record<string, unknown> = { updated_at: now() };
   if (fields.status) set.subscription_status = fields.status;
   if (fields.customerId) set.stripe_customer_id = fields.customerId;
+  if (fields.email) set.email = fields.email;
   db.update(users).set(set).where(eq(users.id, userId)).run();
+}
+
+/**
+ * Anonymous checkout starts with a local placeholder email because the quiz does
+ * not collect email before payment. Once Stripe returns the payer email, adopt
+ * it onto that same local row so Clerk sign-up by email reuses the paid user.
+ */
+function adoptStripeEmail(user: { id: string; email: string }, email: string | null) {
+  const normalized = normalizeStripeEmail(email);
+  if (!normalized || !isCheckoutPlaceholderEmail(user.email)) return;
+
+  const db = getDb();
+  const existing = db.select().from(users).where(eq(users.email, normalized)).get();
+  if (existing && existing.id !== user.id) return;
+
+  updateUser(user.id, { email: normalized });
 }
 
 /**
@@ -205,6 +232,8 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const user = resolveUser({ userId, email });
   if (!user) return; // unknown user — tolerated
 
+  adoptStripeEmail(user, email);
+
   // A paid invoice means access is granted (covers both the trial-start and
   // the recurring renewal cases).
   updateUser(user.id, { status: 'active', customerId });
@@ -287,6 +316,8 @@ function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const user = resolveUser({ userId, email });
   if (!user) return;
+
+  adoptStripeEmail(user, email);
 
   // Record the customer id so the billing portal can find them later. The
   // subscription.created / invoice.paid events set the concrete status.

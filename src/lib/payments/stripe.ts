@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 
 export interface CheckoutConfig {
-  userEmail: string;
+  userEmail?: string;
   userId: string;
   quizSessionId?: string;
   successUrl: string;
