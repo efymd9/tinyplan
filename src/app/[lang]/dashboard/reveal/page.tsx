@@ -40,6 +40,9 @@ const COPY = {
     startDay1: "Empezar el Día 1",
     viewFullWeek: "Ver la semana completa",
     settingUp: "Preparando tu plan…",
+    planTakingLong:
+      "Esto está tardando más de lo normal. Si ya completaste el pago, tu plan está a salvo — vuelve a intentarlo o escríbenos.",
+    retry: "Reintentar",
     // fallback summary builders
     youToldUsPriority: (g: string) => `${g} es tu prioridad`,
     youToldUsBestTime: (m: string) => `${m} es tu mejor momento`,
@@ -67,6 +70,9 @@ const COPY = {
     startDay1: "Start Day 1",
     viewFullWeek: "View full week",
     settingUp: "Setting up your plan…",
+    planTakingLong:
+      "This is taking longer than usual. If your payment went through, your plan is safe — try again or contact us.",
+    retry: "Try again",
     youToldUsPriority: (g: string) => `${g} is your priority`,
     youToldUsBestTime: (m: string) => `${m} is your best time`,
     youToldUsPrefer: (s: string) => `you prefer ${s}`,
@@ -144,6 +150,8 @@ export default async function PlanRevealPage({
     return (
       <PendingPlanGate
         settingUpLabel={copy.settingUp}
+        timedOutLabel={copy.planTakingLong}
+        retryLabel={copy.retry}
         quizHref={localizeHref("/quiz", locale)}
         waitForServerPlan={user.subscriptionStatus === "trial" || user.subscriptionStatus === "active"}
       />

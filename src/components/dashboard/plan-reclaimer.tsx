@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { pendingGateAction } from "@/lib/dashboard/pending-gate";
 
 const PENDING_PLAN_KEY = "tinyplan_pending_plan_id";
 
@@ -90,10 +91,16 @@ export function PendingPlanGate({
   settingUpLabel,
   quizHref,
   waitForServerPlan = false,
+  timedOutLabel,
+  retryLabel,
 }: {
   settingUpLabel: string;
   quizHref: string;
   waitForServerPlan?: boolean;
+  /** Shown when the server-side plan never appears within the poll budget. */
+  timedOutLabel?: string;
+  /** Label for the manual retry control in the timed-out state. */
+  retryLabel?: string;
 }) {
   const router = useRouter();
   // Resolve "is there a pending plan?" once, lazily, on first client render.
@@ -101,29 +108,57 @@ export function PendingPlanGate({
   // so we default to the spinner and let the effect issue the quiz redirect if
   // nothing is actually pending — never a synchronous setState in the effect.
   const [hasPending] = useState<boolean>(() => readPendingId() !== null);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (hasPending) {
-      // The layout-mounted reclaimer performs the POST + router.refresh(); we
-      // just wait for that refresh to bring the adopted plan into view.
+    const action = pendingGateAction({ hasPending, waitForServerPlan, attempts: 0 });
+    // The layout-mounted reclaimer performs the POST + router.refresh(); we just
+    // wait for that refresh to bring the adopted plan into view.
+    if (action === "wait-reclaim") return;
+    // No pending plan to set up — send them to the quiz.
+    if (action === "redirect-quiz") {
+      router.replace(quizHref);
       return;
     }
-    if (waitForServerPlan) {
-      // Paid checkout plans are now generated server-side from Stripe webhook
-      // metadata. If the user reaches reveal while the webhook is still in
-      // flight, keep refreshing briefly instead of bouncing a paid customer to
-      // the quiz.
-      const id = window.setInterval(() => router.refresh(), 2500);
-      return () => window.clearInterval(id);
-    }
-    // No pending plan to set up — send them to the quiz.
-    router.replace(quizHref);
+    // action === "poll": paid checkout plans are generated server-side from the
+    // Stripe webhook. If the user reaches reveal while the webhook is still in
+    // flight, refresh briefly — but BOUND it so a paid customer whose plan never
+    // materializes lands on a recovery state instead of an infinite spinner.
+    let attempts = 0;
+    const id = window.setInterval(() => {
+      attempts += 1;
+      if (pendingGateAction({ hasPending, waitForServerPlan, attempts }) === "timeout") {
+        window.clearInterval(id);
+        setTimedOut(true);
+        return;
+      }
+      router.refresh();
+    }, 2500);
+    return () => window.clearInterval(id);
   }, [router, quizHref, hasPending, waitForServerPlan]);
 
-  // While a reclaim/server-side generation is in flight, show a spinner rather
-  // than flashing the quiz redirect. When nothing is pending and the user is not
-  // paid, the effect above redirects; render nothing in that frame.
+  // When nothing is pending and the user is not paid, the effect above
+  // redirects; render nothing in that frame.
   if (!hasPending && !waitForServerPlan) return null;
+
+  if (timedOut) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <p className="text-sm text-muted-foreground mb-4">
+            {timedOutLabel ?? settingUpLabel}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            {retryLabel ?? "Retry"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
