@@ -13,6 +13,48 @@ export interface StripeEventRecord {
 
 const now = () => Math.floor(Date.now() / 1000);
 
+// Keys in a Stripe event body that carry payer PII. We persist the (redacted)
+// payload only for idempotency/debugging — never for reprocessing (Stripe
+// redelivers the live body) — so stripping these keeps stripe_events free of
+// personal data and out of scope for GDPR/CCPA erasure.
+const PII_KEYS = new Set([
+  'email',
+  'customer_email',
+  'receipt_email',
+  'customer_details',
+  'billing_details',
+  'name',
+  'customer_name',
+  'phone',
+  'address',
+  'shipping',
+  'tax_ids',
+]);
+
+function redactValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = PII_KEYS.has(k) ? '[redacted]' : redactValue(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Strip payer PII from a raw Stripe webhook body before it is stored. On a parse
+ * failure we drop the body entirely rather than risk persisting raw PII.
+ */
+export function redactStripeEventPayload(rawBody: string): string {
+  try {
+    return JSON.stringify(redactValue(JSON.parse(rawBody)));
+  } catch {
+    return '{"_redaction":"unparseable webhook body dropped to avoid storing PII"}';
+  }
+}
+
 function serializeError(error: unknown): string | null {
   if (!error) return null;
   if (error instanceof Error) return error.stack || error.message;
@@ -54,7 +96,7 @@ export function beginStripeEvent(
       id: event.id,
       type: event.type,
       livemode: event.livemode ? 1 : 0,
-      payload_json: rawBody,
+      payload_json: redactStripeEventPayload(rawBody),
       created_at: now(),
     })
     .onConflictDoNothing()

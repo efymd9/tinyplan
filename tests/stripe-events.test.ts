@@ -8,6 +8,7 @@ import {
   beginStripeEvent,
   completeStripeEvent,
   failStripeEvent,
+  redactStripeEventPayload,
 } from '../src/lib/payments/stripe-events';
 
 // Isolate this run on a throwaway DB. getDb() resolves DATABASE_PATH lazily, so
@@ -56,4 +57,35 @@ test('a fully processed event is skipped as a duplicate', () => {
     false,
     'a completed event must be deduped so side effects do not double-fire'
   );
+});
+
+test('redactStripeEventPayload strips payer PII but keeps audit fields', () => {
+  const raw = JSON.stringify({
+    id: 'evt_1',
+    type: 'invoice.paid',
+    data: {
+      object: {
+        id: 'in_123',
+        customer_email: 'payer@example.com',
+        customer_details: { email: 'payer@example.com', name: 'Jane Doe' },
+        amount_paid: 1499,
+      },
+    },
+  });
+
+  const redacted = redactStripeEventPayload(raw);
+  assert.ok(!redacted.includes('payer@example.com'), 'email must not be stored');
+  assert.ok(!redacted.includes('Jane Doe'), 'name must not be stored');
+
+  const parsed = JSON.parse(redacted);
+  assert.equal(parsed.id, 'evt_1'); // audit fields preserved
+  assert.equal(parsed.type, 'invoice.paid');
+  assert.equal(parsed.data.object.id, 'in_123');
+  assert.equal(parsed.data.object.amount_paid, 1499);
+});
+
+test('redactStripeEventPayload drops an unparseable body rather than storing PII', () => {
+  const out = redactStripeEventPayload('this is not json with payer@example.com inside');
+  assert.ok(!out.includes('payer@example.com'));
+  assert.equal(typeof out, 'string');
 });

@@ -187,11 +187,16 @@ Useful flags: `--yes` skips the confirmation prompt (for scripted runs); `--db <
 | `plans` | `user_id` |
 | `quiz_sessions` | `user_id` **and** transitively via `plans.quiz_session_id` — in the anonymous quiz→checkout funnel `quiz_sessions.user_id` is often `NULL`, so following the plan link is what actually catches the parent's quiz answers |
 | `payments` | `user_id` |
+| `partner_network_events` | `external_payment_id` — the user's Stripe invoice ids (from `payments.stripe_session_id`), gathered before `payments` is deleted |
 | `analytics_events` | `user_id` (anonymous, `session_id`-only events have no `user_id` and are not PII) |
 | `auth_tokens` | `user_id` (legacy magic-link) |
 | `users` | the row itself, deleted last |
 
+`stripe_events` is **not** in this list by design: raw webhook bodies are **PII-redacted at write time** (payer email/name/address stripped in `src/lib/payments/stripe-events.ts`), so the audit log holds no personal data to erase. Its growth is capped by retention pruning (below), not by per-user deletion.
+
 If the email/id resolves to no `users` row, the tool exits cleanly with a note — a parent who quizzed but never signed in may have only an **anonymous** plan/session that cannot be tied back to them.
+
+**Retention pruning.** [`scripts/prune-analytics.mjs`](scripts/prune-analytics.mjs) (run it on a cron) deletes aged rows from `analytics_events` (`ANALYTICS_RETENTION_DAYS`, default 180), `stripe_events` (`STRIPE_EVENTS_RETENTION_DAYS`, default 90), and already-delivered `partner_network_events` (`PARTNER_EVENTS_RETENTION_DAYS`, default 365; pending retries are kept). This bounds data retention independent of individual deletion requests.
 
 #### Step 2 — delete the user in Clerk (REQUIRED — not done by the tool)
 

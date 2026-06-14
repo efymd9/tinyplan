@@ -181,6 +181,15 @@ async function main() {
     }
     const quizSessionIds = [...sessionIds];
 
+    // Affiliate (partner-network) events are keyed by external_payment_id, which
+    // is the Stripe invoice id we also store in payments.stripe_session_id. Pull
+    // this user's invoice ids BEFORE deleting payments so we can scrub their
+    // affiliate-reported conversions/reversals too.
+    const invoiceIds = db
+      .prepare('SELECT stripe_session_id FROM payments WHERE user_id = ? AND stripe_session_id IS NOT NULL')
+      .all(userId)
+      .map((r) => r.stripe_session_id);
+
     // ── Helpers to count / delete by an id list without giant IN() params ────
     // SQLite caps bound params (~999/32766). Our per-user sets are tiny, but
     // chunk anyway to stay correct for power users.
@@ -225,6 +234,7 @@ async function main() {
       plans: planIds.length,
       quiz_sessions: countByIds('quiz_sessions', 'id', quizSessionIds),
       payments: countByValue('payments', 'user_id', userId),
+      partner_network_events: countByIds('partner_network_events', 'external_payment_id', invoiceIds),
       analytics_events: countByValue('analytics_events', 'user_id', userId),
       auth_tokens: countByValue('auth_tokens', 'user_id', userId),
       users: 1,
@@ -239,6 +249,7 @@ async function main() {
         'plans',
         'quiz_sessions',
         'payments',
+        'partner_network_events',
         'analytics_events',
         'auth_tokens',
         'users',
@@ -287,6 +298,11 @@ async function main() {
       deleted.plans = db.prepare('DELETE FROM plans WHERE user_id = ?').run(userId).changes;
       deleted.quiz_sessions = deleteByIds('quiz_sessions', 'id', quizSessionIds);
       deleted.payments = db.prepare('DELETE FROM payments WHERE user_id = ?').run(userId).changes;
+      deleted.partner_network_events = deleteByIds(
+        'partner_network_events',
+        'external_payment_id',
+        invoiceIds
+      );
       deleted.analytics_events = db
         .prepare('DELETE FROM analytics_events WHERE user_id = ?')
         .run(userId).changes;
