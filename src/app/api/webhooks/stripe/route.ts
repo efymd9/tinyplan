@@ -13,7 +13,7 @@ import {
   completeStripeEvent,
   failStripeEvent,
 } from '@/lib/payments/stripe-events';
-import { pnConversion, pnReversal } from '@/lib/partner-network';
+import { pnConversion, pnReversal, isFullRefund } from '@/lib/partner-network';
 import { createPlanForUser, normalizeQuizAnswers } from '@/lib/plans/create-plan';
 import { normalizeEmail } from '@/lib/auth/email';
 import { mergeUserInto } from '@/lib/auth/merge-users';
@@ -395,8 +395,12 @@ export async function POST(req: NextRequest) {
 
       case 'charge.refunded': {
         // Affiliate clawback: report the refund against the same invoice id we
-        // reported as the conversion's external_payment_id.
+        // reported as the conversion's external_payment_id. Only a FULL refund
+        // reverses the conversion — a partial refund leaves the customer a
+        // paying subscriber, so it is not reported. pnReversal additionally
+        // skips payments we never reported and never reverses twice.
         const charge = event.data.object as Stripe.Charge;
+        if (!isFullRefund(charge)) break;
         const invId = await getInvoiceIdForCharge(charge.id);
         if (invId) await pnReversal(invId, 'refund');
         break;
