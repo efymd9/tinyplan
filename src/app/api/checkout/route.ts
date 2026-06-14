@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createCheckoutSession } from "@/lib/payments/stripe";
 import { getCurrentUser } from "@/lib/auth/magic-link";
 import { normalizeEmail } from "@/lib/auth/email";
+import { PARTNER_CLICK_COOKIE, isValidClickId } from "@/lib/partner-click";
 import { resolveLocale } from "@/lib/i18n/config";
 import { getDb } from "@/lib/db";
 import { quizSessions, users } from "@/lib/db/schema";
@@ -94,14 +95,19 @@ export async function POST(req: NextRequest) {
     const locale = resolveLocale(jar.get("tinyplan_locale")?.value);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+    // Affiliate attribution: forward the captured partner click id only if it is
+    // well-formed. Re-validating here (not just on write) stops a tampered cookie
+    // from being credited as a referral in Stripe metadata.
+    const rawClickId = jar.get(PARTNER_CLICK_COOKIE)?.value;
+    const clickId = isValidClickId(rawClickId) ? rawClickId : undefined;
+
     const result = await createCheckoutSession({
       userEmail: hasCustomerEmail ? submittedEmail : undefined,
       userId,
       quizSessionId,
       successUrl: `${baseUrl}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/${locale}/result`,
-      // Affiliate attribution: forward the captured partner click id (if any).
-      clickId: jar.get("pn_click")?.value || undefined,
+      clickId,
     });
 
     return NextResponse.json(result);

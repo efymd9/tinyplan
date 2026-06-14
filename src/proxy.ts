@@ -17,9 +17,15 @@ import path from "node:path";
 import { Reader, type CountryResponse } from "mmdb-lib";
 import { locales, defaultLocale, isLocale } from "@/lib/i18n/config";
 import { clientIp } from "@/lib/request-ip";
+import {
+  PARTNER_CLICK_COOKIE,
+  PARTNER_AFFILIATE_FLAG_COOKIE,
+  isValidClickId,
+} from "@/lib/partner-click";
 
 const COOKIE = "tinyplan_locale";
 const ONE_YEAR = 60 * 60 * 24 * 365;
+const PARTNER_CLICK_MAX_AGE = 60 * 60 * 24 * 60; // 60 days
 
 // ── GeoIP (local lookup — visitor IPs never leave this server) ──────────────
 // Used only as a tiebreaker when Accept-Language matches neither locale.
@@ -130,6 +136,27 @@ function pickLocale(request: NextRequest): string {
   return defaultLocale;
 }
 
+// Persist an affiliate click id server-side. The cookie is HttpOnly + Secure so
+// it cannot be written/overwritten by client JS (an injected script could
+// otherwise claim a referral); a separate readable flag lets the client decide
+// whether to load the partner SDK. Validated so only well-formed ids are stored.
+function setAffiliateCookies(request: NextRequest, res: NextResponse) {
+  const clickId = request.nextUrl.searchParams.get("click_id");
+  if (!isValidClickId(clickId)) return;
+  res.cookies.set(PARTNER_CLICK_COOKIE, clickId, {
+    path: "/",
+    maxAge: PARTNER_CLICK_MAX_AGE,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+  });
+  res.cookies.set(PARTNER_AFFILIATE_FLAG_COOKIE, "1", {
+    path: "/",
+    maxAge: PARTNER_CLICK_MAX_AGE,
+    sameSite: "lax",
+  });
+}
+
 function localeProxy(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
 
@@ -147,6 +174,7 @@ function localeProxy(request: NextRequest): NextResponse {
     request.cookies.set(COOKIE, urlLocale);
     const res = NextResponse.next({ request });
     res.cookies.set(COOKIE, urlLocale, { path: "/", maxAge: ONE_YEAR });
+    setAffiliateCookies(request, res);
     return res;
   }
 
@@ -156,6 +184,7 @@ function localeProxy(request: NextRequest): NextResponse {
   url.search = search;
   const res = NextResponse.redirect(url);
   res.cookies.set(COOKIE, locale, { path: "/", maxAge: ONE_YEAR });
+  setAffiliateCookies(request, res);
   return res;
 }
 

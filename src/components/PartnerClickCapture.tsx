@@ -2,34 +2,33 @@
 
 import Script from "next/script";
 import { useEffect, useState } from "react";
+import {
+  PARTNER_AFFILIATE_FLAG_COOKIE,
+  isValidClickId,
+} from "@/lib/partner-click";
 
-function hasPartnerCookie() {
+function hasAffiliateFlag() {
   return document.cookie
     .split(";")
-    .some((part) => part.trim().startsWith("pn_click="));
+    .some((part) => part.trim().startsWith(`${PARTNER_AFFILIATE_FLAG_COOKIE}=`));
 }
 
-// Captures the affiliate-network click_id into a 60-day cookie. A partner's link
-// routes through the network /r redirect, landing on tinyplan.org/?click_id=<id>
-// (the locale proxy preserves the query string). The checkout route reads this
-// cookie and attaches it to the Stripe subscription metadata.
+// Decides whether to load the third-party partner SDK for this session. A
+// partner's link routes through the network /r redirect, landing on
+// tinyplan.org/?click_id=<id> (the locale proxy preserves the query string).
 //
-// Privacy hardening: do not load the third-party partner SDK for organic users.
-// Only affiliate-attributed sessions (fresh click_id or existing pn_click cookie)
-// load it so the partner's PageView pixel can run for those visitors.
+// The proxy now PERSISTS the click id server-side (HttpOnly pn_click, read by
+// checkout) plus a readable pn_aff flag — so this client component no longer
+// writes the cookie (which would be script-spoofable). It only decides SDK
+// loading, and only for affiliate-attributed sessions (fresh click_id or the
+// pn_aff flag) so the partner pixel never runs for organic users.
 export function PartnerClickCapture() {
   const [shouldLoadSdk, setShouldLoadSdk] = useState(false);
 
   useEffect(() => {
     try {
       const cid = new URLSearchParams(window.location.search).get("click_id");
-      if (cid && /^[\w.-]{1,128}$/.test(cid)) {
-        document.cookie = `pn_click=${encodeURIComponent(cid)}; Max-Age=5184000; Path=/; SameSite=Lax`;
-        window.requestAnimationFrame(() => setShouldLoadSdk(true));
-        return;
-      }
-
-      const loadSdk = hasPartnerCookie();
+      const loadSdk = isValidClickId(cid) || hasAffiliateFlag();
       window.requestAnimationFrame(() => setShouldLoadSdk(loadSdk));
     } catch {
       /* ignore */
