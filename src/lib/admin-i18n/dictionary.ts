@@ -43,6 +43,8 @@ export interface AdminDict {
     plansGenerated: string;
     quizSessions: string;
     purchases: string;
+    /** Sub-label under the Purchases metric, e.g. "paying customers". */
+    purchasesSub: string;
     quizToPurchase: string;
     maxQuizDepth: string;
     maxQuizDepthSub: string;
@@ -55,7 +57,8 @@ export interface AdminDict {
     quizCompletes: string;
     pricingViews: string;
     purchaseStarts: string;
-    purchases: string;
+    /** Funnel telemetry: sessions that reached the checkout-success page. */
+    checkoutCompletions: string;
   };
   /** Suffix in the funnel bar, e.g. "-12% dropoff". */
   dropoffSuffix: string;
@@ -176,6 +179,7 @@ const en: AdminDict = {
     plansGenerated: "Plans Generated",
     quizSessions: "Quiz Sessions",
     purchases: "Purchases",
+    purchasesSub: "paying customers",
     quizToPurchase: "Quiz → Purchase",
     maxQuizDepth: "Max Quiz Depth",
     maxQuizDepthSub: "deepest step reached",
@@ -188,7 +192,7 @@ const en: AdminDict = {
     quizCompletes: "Quiz Completes",
     pricingViews: "Pricing Views",
     purchaseStarts: "Purchase Starts",
-    purchases: "Purchases",
+    checkoutCompletions: "Checkout completions",
   },
   dropoffSuffix: "dropoff",
   lost: "lost",
@@ -294,6 +298,7 @@ const ru: AdminDict = {
     plansGenerated: "Создано планов",
     quizSessions: "Сессии квиза",
     purchases: "Покупки",
+    purchasesSub: "платящие клиенты",
     quizToPurchase: "Квиз → Покупка",
     maxQuizDepth: "Макс. глубина квиза",
     maxQuizDepthSub: "самый дальний шаг",
@@ -306,7 +311,7 @@ const ru: AdminDict = {
     quizCompletes: "Завершённые квизы",
     pricingViews: "Просмотры цен",
     purchaseStarts: "Начатые покупки",
-    purchases: "Покупки",
+    checkoutCompletions: "Завершённые оформления",
   },
   dropoffSuffix: "отток",
   lost: "потеряно",

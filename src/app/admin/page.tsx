@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/auth/admin";
 import { getDb } from "@/lib/db";
-import { analyticsEvents, users, plans, payments, quizSessions } from "@/lib/db/schema";
+import { analyticsEvents, users, plans, quizSessions } from "@/lib/db/schema";
 import { sql, asc, desc } from "drizzle-orm";
+import { countPaidCustomers } from "@/lib/analytics/purchases";
 import {
   AdminDashboard,
   type AdminData,
@@ -42,7 +43,12 @@ export default async function AdminPage() {
   const totalUsers = db.select({ count: sql<number>`count(*)` }).from(users).get()?.count ?? 0;
   const totalPlans = db.select({ count: sql<number>`count(*)` }).from(plans).get()?.count ?? 0;
   const totalQuizSessions = db.select({ count: sql<number>`count(*)` }).from(quizSessions).get()?.count ?? 0;
-  const totalPayments = db.select({ count: sql<number>`count(*)` }).from(payments).get()?.count ?? 0;
+
+  // Real purchases = distinct customers with a successful payment, read from the
+  // payments table (money actually collected) — NOT the purchase_completed
+  // analytics event, which over-counted reloads/test runs and is no longer
+  // emitted. See countPaidCustomers.
+  const purchases = countPaidCustomers(db);
 
   const eventCounts = db
     .select({
@@ -59,10 +65,14 @@ export default async function AdminPage() {
   const quizCompletes = eventMap.get("quiz_completed") ?? totalQuizSessions;
   const pricingViews = eventMap.get("paywall_viewed") ?? 0;
   const purchaseStarts = eventMap.get("checkout_started") ?? 0;
-  const purchaseCompletes = eventMap.get("purchase_completed") ?? totalPayments;
+  // Funnel telemetry only: sessions that reached the checkout-success page. This
+  // is NOT a purchase count — it over-fired on reloads/test runs and is no
+  // longer emitted; kept solely to show the historical funnel shape.
+  const checkoutCompletes = eventMap.get("purchase_completed") ?? 0;
 
+  // Conversion is measured against REAL purchases, not the funnel event.
   const funnelConversion =
-    quizStarts > 0 ? ((purchaseCompletes / quizStarts) * 100).toFixed(1) : "0";
+    quizStarts > 0 ? ((purchases / quizStarts) * 100).toFixed(1) : "0";
 
   const recentEvents = db
     .select()
@@ -221,7 +231,7 @@ export default async function AdminPage() {
       anonSessions,
       totalPlans,
       totalQuizSessions,
-      purchaseCompletes,
+      purchases,
       funnelConversion,
       maxQuizDepth,
       avgQuizDepth,
@@ -232,7 +242,7 @@ export default async function AdminPage() {
       quizCompletes,
       pricingViews,
       purchaseStarts,
-      purchaseCompletes,
+      checkoutCompletes,
     },
     sessionLog,
     topDropoffs,

@@ -41,7 +41,7 @@ export interface AdminData {
     anonSessions: number;
     totalPlans: number;
     totalQuizSessions: number;
-    purchaseCompletes: number;
+    purchases: number;
     funnelConversion: string;
     maxQuizDepth: number;
     avgQuizDepth: string;
@@ -52,7 +52,7 @@ export interface AdminData {
     quizCompletes: number;
     pricingViews: number;
     purchaseStarts: number;
-    purchaseCompletes: number;
+    checkoutCompletes: number;
   };
   sessionLog: SessionSummary[];
   topDropoffs: DropoffRow[];
@@ -79,7 +79,7 @@ function buildFunnelSteps(funnel: AdminData["funnel"], dict: AdminDict): FunnelS
     { label: dict.funnel.quizCompletes, value: funnel.quizCompletes, pct: pct(funnel.quizCompletes) },
     { label: dict.funnel.pricingViews, value: funnel.pricingViews, pct: pct(funnel.pricingViews) },
     { label: dict.funnel.purchaseStarts, value: funnel.purchaseStarts, pct: pct(funnel.purchaseStarts) },
-    { label: dict.funnel.purchases, value: funnel.purchaseCompletes, pct: pct(funnel.purchaseCompletes) },
+    { label: dict.funnel.checkoutCompletions, value: funnel.checkoutCompletes, pct: pct(funnel.checkoutCompletes) },
   ];
 }
 
@@ -127,7 +127,7 @@ function Dashboard({ data }: { data: AdminData }) {
     { label: dict.metrics.anonSessions, value: metrics.anonSessions, sub: dict.metrics.anonSessionsSub },
     { label: dict.metrics.plansGenerated, value: metrics.totalPlans },
     { label: dict.metrics.quizSessions, value: metrics.totalQuizSessions },
-    { label: dict.metrics.purchases, value: metrics.purchaseCompletes },
+    { label: dict.metrics.purchases, value: metrics.purchases, sub: dict.metrics.purchasesSub },
     { label: dict.metrics.quizToPurchase, value: `${metrics.funnelConversion}%` },
     { label: dict.metrics.maxQuizDepth, value: metrics.maxQuizDepth, sub: dict.metrics.maxQuizDepthSub },
     { label: dict.metrics.avgQuizDepth, value: metrics.avgQuizDepth, sub: dict.metrics.avgQuizDepthSub },
