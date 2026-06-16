@@ -10,6 +10,7 @@ import { redirect } from 'next/navigation';
 import { localizeHref } from '@/lib/i18n/href';
 import type { Locale } from '@/lib/i18n/config';
 import type { AuthUser } from '@/lib/auth/magic-link';
+import { reconcileSubscriptionFromStripe } from '@/lib/auth/subscription-sync';
 
 /**
  * Is the subscription paywall actually enforced?
@@ -49,5 +50,16 @@ export async function requireActiveSubscription(
 ): Promise<void> {
   if (!isBillingEnforced()) return; // gate OPEN during soft launch
   if (hasActiveSubscription(user)) return;
+
+  // Just-paid buyer whose Stripe webhook hasn't landed yet? Their local row is
+  // still `free`, but they DO have a live subscription. Reconcile straight from
+  // Stripe by email before bouncing them — closes the anonymous buy → sign-up →
+  // dashboard race (DEPLOY.md → Going live, step 5). Fail-safe: null on any
+  // error/no-match, in which case we fall through to the pricing redirect.
+  if (user) {
+    const synced = await reconcileSubscriptionFromStripe(user);
+    if (synced === 'trial' || synced === 'active') return;
+  }
+
   redirect(localizeHref('/pricing', lang));
 }
