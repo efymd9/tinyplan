@@ -52,7 +52,7 @@ export interface AdminData {
     quizCompletes: number;
     pricingViews: number;
     purchaseStarts: number;
-    checkoutCompletes: number;
+    purchases: number;
   };
   sessionLog: SessionSummary[];
   topDropoffs: DropoffRow[];
@@ -79,7 +79,7 @@ function buildFunnelSteps(funnel: AdminData["funnel"], dict: AdminDict): FunnelS
     { label: dict.funnel.quizCompletes, value: funnel.quizCompletes, pct: pct(funnel.quizCompletes) },
     { label: dict.funnel.pricingViews, value: funnel.pricingViews, pct: pct(funnel.pricingViews) },
     { label: dict.funnel.purchaseStarts, value: funnel.purchaseStarts, pct: pct(funnel.purchaseStarts) },
-    { label: dict.funnel.checkoutCompletions, value: funnel.checkoutCompletes, pct: pct(funnel.checkoutCompletes) },
+    { label: dict.funnel.purchases, value: funnel.purchases, pct: pct(funnel.purchases) },
   ];
 }
 

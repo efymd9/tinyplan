@@ -65,12 +65,8 @@ export default async function AdminPage() {
   const quizCompletes = eventMap.get("quiz_completed") ?? totalQuizSessions;
   const pricingViews = eventMap.get("paywall_viewed") ?? 0;
   const purchaseStarts = eventMap.get("checkout_started") ?? 0;
-  // Funnel telemetry only: sessions that reached the checkout-success page. This
-  // is NOT a purchase count — it over-fired on reloads/test runs and is no
-  // longer emitted; kept solely to show the historical funnel shape.
-  const checkoutCompletes = eventMap.get("purchase_completed") ?? 0;
 
-  // Conversion is measured against REAL purchases, not the funnel event.
+  // Conversion is measured against REAL purchases (payments), not funnel events.
   const funnelConversion =
     quizStarts > 0 ? ((purchases / quizStarts) * 100).toFixed(1) : "0";
 
@@ -242,7 +238,7 @@ export default async function AdminPage() {
       quizCompletes,
       pricingViews,
       purchaseStarts,
-      checkoutCompletes,
+      purchases,
     },
     sessionLog,
     topDropoffs,

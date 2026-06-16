@@ -57,8 +57,8 @@ export interface AdminDict {
     quizCompletes: string;
     pricingViews: string;
     purchaseStarts: string;
-    /** Funnel telemetry: sessions that reached the checkout-success page. */
-    checkoutCompletions: string;
+    /** Real purchases (distinct paying customers) — the funnel's final step. */
+    purchases: string;
   };
   /** Suffix in the funnel bar, e.g. "-12% dropoff". */
   dropoffSuffix: string;
@@ -192,7 +192,7 @@ const en: AdminDict = {
     quizCompletes: "Quiz Completes",
     pricingViews: "Pricing Views",
     purchaseStarts: "Purchase Starts",
-    checkoutCompletions: "Checkout completions",
+    purchases: "Purchases",
   },
   dropoffSuffix: "dropoff",
   lost: "lost",
@@ -311,7 +311,7 @@ const ru: AdminDict = {
     quizCompletes: "Завершённые квизы",
     pricingViews: "Просмотры цен",
     purchaseStarts: "Начатые покупки",
-    checkoutCompletions: "Завершённые оформления",
+    purchases: "Покупки",
   },
   dropoffSuffix: "отток",
   lost: "потеряно",
