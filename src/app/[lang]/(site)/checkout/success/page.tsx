@@ -7,6 +7,7 @@ import { localizeHref } from "@/lib/i18n/href";
 
 const RESULT_STORAGE_KEY = "tinyplan_quiz_result";
 const PENDING_PLAN_KEY = "tinyplan_pending_plan_id";
+const PENDING_SESSION_KEY = "tinyplan_pending_session_id";
 
 const COPY = {
   es: {
@@ -32,12 +33,20 @@ function SuccessContent() {
     // Plan generation now happens server-side from the paid Stripe checkout's
     // persisted quiz session. Clear the old browser-only handoff keys so a paid
     // buyer's access does not depend on this tab, this device, or localStorage.
+    // Stash the Stripe Checkout session id, though: it is the one identifier that
+    // bridges this paid checkout to the account the buyer is about to create —
+    // even if they sign up with a different email than they paid with. The
+    // dashboard-mounted reclaimer reads it and POSTs /api/checkout/adopt.
     try {
+      const sessionId = new URLSearchParams(window.location.search).get("session_id");
       sessionStorage.removeItem(RESULT_STORAGE_KEY);
       localStorage.removeItem(PENDING_PLAN_KEY);
+      if (sessionId && sessionId.startsWith("cs_")) {
+        localStorage.setItem(PENDING_SESSION_KEY, sessionId);
+      }
     } catch {
       // Storage may be unavailable in private mode; server-side checkout state
-      // is still the source of truth.
+      // is still the source of truth (the email bridge / webhook reconcile).
     }
 
     router.replace(localizeHref("/dashboard/reveal", locale));

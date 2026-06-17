@@ -41,3 +41,41 @@ test('an unpaid visitor with nothing pending is sent to the quiz', () => {
     'redirect-quiz'
   );
 });
+
+test('a paid anonymous checkout being bridged by session id polls, never quiz-bounces', () => {
+  // Mismatched Stripe-vs-Clerk email: the account looks free + plan-less while
+  // the reclaimer adopts by session id — must wait, not redirect to the quiz.
+  assert.equal(
+    pendingGateAction({
+      hasPending: false,
+      waitForServerPlan: false,
+      hasPendingSession: true,
+      attempts: 0,
+    }),
+    'poll'
+  );
+});
+
+test('a session-bridge gate still bounds its polling at the cap', () => {
+  assert.equal(
+    pendingGateAction({
+      hasPending: false,
+      waitForServerPlan: false,
+      hasPendingSession: true,
+      attempts: MAX_SERVER_PLAN_POLLS,
+    }),
+    'timeout'
+  );
+});
+
+test('a pending plan reclaim takes precedence over a pending session', () => {
+  assert.equal(
+    pendingGateAction({
+      hasPending: true,
+      waitForServerPlan: false,
+      hasPendingSession: true,
+      attempts: 0,
+    }),
+    'wait-reclaim'
+  );
+});

@@ -5,27 +5,32 @@ import { useRouter } from "next/navigation";
 import { pendingGateAction } from "@/lib/dashboard/pending-gate";
 
 const PENDING_PLAN_KEY = "tinyplan_pending_plan_id";
+const PENDING_SESSION_KEY = "tinyplan_pending_session_id";
 
 // Module-level latch: the reclaim POST must happen at most once per page load,
 // even if React mounts the component twice (Strict Mode) or it appears more
 // than once in the tree. Lives outside the component so it survives remounts.
 let reclaimStarted = false;
 
-function readPendingId(): string | null {
+function readKey(key: string): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(PENDING_PLAN_KEY);
+    return window.localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-function clearPendingId() {
+function clearKey(key: string) {
   try {
-    window.localStorage.removeItem(PENDING_PLAN_KEY);
+    window.localStorage.removeItem(key);
   } catch {
     // ignore — nothing more we can do
   }
+}
+
+function readPendingId(): string | null {
+  return readKey(PENDING_PLAN_KEY);
 }
 
 /**
@@ -43,26 +48,60 @@ export default function PlanReclaimer() {
 
   useEffect(() => {
     if (reclaimStarted) return;
-    const planId = readPendingId();
-    if (!planId) return;
+    const planId = readKey(PENDING_PLAN_KEY);
+    const sessionId = readKey(PENDING_SESSION_KEY);
+    if (!planId && !sessionId) return;
 
     reclaimStarted = true;
 
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch("/api/plan/reclaim", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ planId }),
-        });
-        clearPendingId();
-        if (!cancelled && res.ok) {
-          router.refresh();
+      let changed = false;
+
+      // 1) Bridge a paid ANONYMOUS checkout (by Stripe session id) onto this
+      //    account, independent of whether the Stripe email matched the Clerk
+      //    sign-up email. Retry briefly while the webhook is still granting the
+      //    placeholder access (response { pending: true }).
+      if (sessionId) {
+        const MAX_ATTEMPTS = 8;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS && !cancelled; attempt++) {
+          let retry = false;
+          try {
+            const res = await fetch("/api/checkout/adopt", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId }),
+            });
+            const data = res.ok ? await res.json().catch(() => null) : null;
+            if (data?.adopted) changed = true;
+            else if (data?.pending) retry = true;
+          } catch {
+            // Network error — stop retrying.
+          }
+          if (changed || !retry) break;
+          await new Promise((r) => setTimeout(r, 2500));
         }
-      } catch {
-        // Network error — drop the key anyway so we don't loop on every render.
-        clearPendingId();
+        clearKey(PENDING_SESSION_KEY);
+      }
+
+      // 2) Legacy funnel: adopt an anonymously-generated plan by id.
+      if (planId) {
+        try {
+          const res = await fetch("/api/plan/reclaim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ planId }),
+          });
+          clearKey(PENDING_PLAN_KEY);
+          if (res.ok) changed = true;
+        } catch {
+          // Network error — drop the key anyway so we don't loop on every render.
+          clearKey(PENDING_PLAN_KEY);
+        }
+      }
+
+      if (!cancelled && changed) {
+        router.refresh();
       }
     })();
 
@@ -108,10 +147,14 @@ export function PendingPlanGate({
   // so we default to the spinner and let the effect issue the quiz redirect if
   // nothing is actually pending — never a synchronous setState in the effect.
   const [hasPending] = useState<boolean>(() => readPendingId() !== null);
+  // A paid anonymous checkout being bridged by Stripe session id (see
+  // PlanReclaimer). While present, the buyer must wait — not be bounced to the
+  // quiz — even though their account may momentarily look free and plan-less.
+  const [hasPendingSession] = useState<boolean>(() => readKey(PENDING_SESSION_KEY) !== null);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    const action = pendingGateAction({ hasPending, waitForServerPlan, attempts: 0 });
+    const action = pendingGateAction({ hasPending, waitForServerPlan, hasPendingSession, attempts: 0 });
     // The layout-mounted reclaimer performs the POST + router.refresh(); we just
     // wait for that refresh to bring the adopted plan into view.
     if (action === "wait-reclaim") return;
@@ -121,13 +164,17 @@ export function PendingPlanGate({
       return;
     }
     // action === "poll": paid checkout plans are generated server-side from the
-    // Stripe webhook. If the user reaches reveal while the webhook is still in
-    // flight, refresh briefly — but BOUND it so a paid customer whose plan never
-    // materializes lands on a recovery state instead of an infinite spinner.
+    // Stripe webhook (and bridged onto this account by the reclaimer). If the
+    // user reaches reveal while that is still in flight, refresh briefly — but
+    // BOUND it so a paid customer whose plan never materializes lands on a
+    // recovery state instead of an infinite spinner.
     let attempts = 0;
     const id = window.setInterval(() => {
       attempts += 1;
-      if (pendingGateAction({ hasPending, waitForServerPlan, attempts }) === "timeout") {
+      if (
+        pendingGateAction({ hasPending, waitForServerPlan, hasPendingSession, attempts }) ===
+        "timeout"
+      ) {
         window.clearInterval(id);
         setTimedOut(true);
         return;
@@ -135,11 +182,11 @@ export function PendingPlanGate({
       router.refresh();
     }, 2500);
     return () => window.clearInterval(id);
-  }, [router, quizHref, hasPending, waitForServerPlan]);
+  }, [router, quizHref, hasPending, waitForServerPlan, hasPendingSession]);
 
   // When nothing is pending and the user is not paid, the effect above
   // redirects; render nothing in that frame.
-  if (!hasPending && !waitForServerPlan) return null;
+  if (!hasPending && !waitForServerPlan && !hasPendingSession) return null;
 
   if (timedOut) {
     return (

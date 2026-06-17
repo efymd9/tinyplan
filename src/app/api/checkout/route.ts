@@ -8,6 +8,7 @@ import { resolveLocale } from "@/lib/i18n/config";
 import { getDb } from "@/lib/db";
 import { quizSessions, users } from "@/lib/db/schema";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { hasActiveSubscription } from "@/lib/auth/subscription";
 import { buildTagProfile } from "@/lib/quiz/tags";
 import { normalizeQuizAnswers } from "@/lib/plans/create-plan";
 import { eq } from "drizzle-orm";
@@ -43,6 +44,26 @@ export async function POST(req: NextRequest) {
     const existing = hasCustomerEmail
       ? db.select().from(users).where(eq(users.email, submittedEmail)).get()
       : null;
+
+    // Duplicate-purchase guard: a buyer who already has access (trial/active)
+    // must NOT be sent into a second Stripe Checkout — that would charge them $1
+    // AND start a SECOND $14.99/mo subscription. Common under ad traffic: mobile
+    // double-taps and returning subscribers clicking a retargeting ad. Send them
+    // to the dashboard instead of opening a new checkout session.
+    if (
+      hasActiveSubscription(user) ||
+      existing?.subscription_status === "trial" ||
+      existing?.subscription_status === "active"
+    ) {
+      const subJar = await cookies();
+      const subLocale = resolveLocale(subJar.get("tinyplan_locale")?.value);
+      const subBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      return NextResponse.json({
+        url: `${subBaseUrl}/${subLocale}/dashboard/today`,
+        alreadySubscribed: true,
+      });
+    }
+
     const userId = existing?.id || user?.id || uuid();
     const localEmail = hasCustomerEmail
       ? submittedEmail

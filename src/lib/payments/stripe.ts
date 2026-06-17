@@ -152,6 +152,12 @@ export async function createCheckoutSession(
       : config.successUrl + '?session_id={CHECKOUT_SESSION_ID}',
     cancel_url: config.cancelUrl,
     metadata,
+  }, {
+    // Collapse rapid double-clicks from the SAME user into one Checkout Session
+    // (a 30s bucket): identical params return the same session instead of
+    // creating a second subscription. New buyers get a fresh userId per attempt,
+    // so this never blocks distinct purchases.
+    idempotencyKey: `checkout:${config.userId}:${Math.floor(Date.now() / 30000)}`,
   });
 
   return {
