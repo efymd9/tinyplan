@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '@/lib/db';
-import { analyticsEvents } from '@/lib/db/schema';
+import { enqueueAnalyticsEvent } from '@/lib/analytics/ingest-buffer';
 import { checkRateLimit } from '@/lib/rate-limit';
 
 // First-party analytics ingestion. Runs at request time so it can read the
@@ -53,21 +52,20 @@ export async function POST(request: NextRequest) {
       propertiesJson = JSON.stringify(properties).slice(0, MAX_PROPERTIES);
     }
 
-    const db = getDb();
-
-    db.insert(analyticsEvents)
-      .values({
-        id: uuidv4(),
-        user_id: clamp(userId, 128),
-        session_id: clamp(sessionId, 128),
-        event_name: event.slice(0, MAX_EVENT_NAME),
-        properties_json: propertiesJson,
-        path: clamp(path, MAX_PATH),
-        referrer: resolvedReferrer,
-        user_agent: userAgent,
-        created_at: Date.now(),
-      })
-      .run();
+    // Buffer the event and return immediately — the write is batched off the
+    // request path so a marketing flood of page_viewed/quiz events can't stall
+    // the single synchronous-SQLite event loop (see ingest-buffer).
+    enqueueAnalyticsEvent({
+      id: uuidv4(),
+      user_id: clamp(userId, 128),
+      session_id: clamp(sessionId, 128),
+      event_name: event.slice(0, MAX_EVENT_NAME),
+      properties_json: propertiesJson,
+      path: clamp(path, MAX_PATH),
+      referrer: resolvedReferrer,
+      user_agent: userAgent,
+      created_at: Date.now(),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

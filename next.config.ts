@@ -53,11 +53,28 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    // The landing/illustrations are ~1.4MB PNGs optimized per-request by sharp IN
+    // the single Node process. Default TTL is 4h, so under sustained ad traffic
+    // the optimizer keeps re-running and re-revalidating. 31 days means each
+    // variant is generated once, then served from cache — keeping sharp CPU off
+    // the hot path that also runs the synchronous SQLite writes.
+    minimumCacheTTL: 2678400, // 31 days
+  },
   async headers() {
     return [
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        // Long-cache the raw brand assets (stable filenames) so browsers/any CDN
+        // and the image optimizer's upstream fetch stop re-pulling 1.4MB PNGs
+        // through Node on every cold visit.
+        source: "/images/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=2592000" }, // 30 days
+        ],
       },
     ];
   },
