@@ -17,11 +17,26 @@
 
 tinyplan.org {
 	encode zstd gzip
+	# Edge abuse guard: reject multi-MB request bodies before they reach Node.
+	# 1MB is far above any legit payload (quiz answers, checkout, Stripe webhook
+	# events are all <<1MB) but blocks memory-pressure floods during ad traffic.
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy 127.0.0.1:3002
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	header X-Content-Type-Options "nosniff"
 	header Referrer-Policy "strict-origin-when-cross-origin"
 }
+
+# STATIC/IMAGE OFFLOAD — NOT done here on purpose. A Caddy `file_server` can't
+# serve the assets: they live under /root (0700) which the `caddy` user can't
+# read, and loosening /root would expose the 0644 SQLite DB. The app also serves
+# images via the Next optimizer (/_next/image), and /_next/static is already
+# immutable-cached. The real edge offload (cache /_next/image + /_next/static so
+# cold visitors never hit Node) is a CDN job: put Cloudflare's free tier in front
+# of tinyplan.org. If you do, set `trusted_proxies` here AND revisit
+# src/lib/request-ip.ts (it assumes ONE trusted hop / rightmost XFF).
 
 # Redirect www -> apex (needs a www A record pointing here; Caddy auto-certs it).
 www.tinyplan.org {
